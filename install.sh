@@ -52,7 +52,6 @@ fi
 # Homebrew >=6 refuses third-party taps until explicitly trusted
 brew trust nikitabobko/tap 2>/dev/null || true
 brew trust felixkratz/formulae 2>/dev/null || true
-brew trust BarutSRB/tap 2>/dev/null || true
 
 log "Installing packages (brew bundle)"
 PRE_FORMULAE="$(brew list --formula 2>/dev/null | sort)"

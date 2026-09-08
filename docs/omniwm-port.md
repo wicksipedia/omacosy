@@ -126,6 +126,56 @@ this directory. Version-critical reconciliation:
 - Undocumented gem: system-wide window corner radius via
   NSConvolutionOverride defaults.
 
+## 0.6.8 (upgraded 2026-09-08)
+
+How it broke first: 0.6.8 moved the cask from BarutSRB/tap to
+homebrew/cask, and a `brew upgrade` on 2026-09-07 21:56 replaced the
+app and omniwmctl on disk UNDER the running 0.6.4 process. The server
+kept speaking protocol 13 while the new CLI speaks 15, so every
+omniwmctl request but `version` answered `protocol_mismatch`: bar
+click-to-jump, overview card taps and the Super+Space palette chord
+were all dead, and the bar's `watch workspace-bar` survived only
+because its child predated the upgrade. Everything on the held client
+(omacosy-omni: swipes, Super+N, bar snapshots) negotiates per
+connection and never noticed. Rule: a cask upgrade is not done until
+the WM has been restarted. Casks cannot be pinned, so expect this on
+every `brew upgrade` that carries OmniWM.
+
+Restart facts (0.6.4 -> 0.6.8, one quit + `open -a`): the socket
+answered in ~1 s (no >10 s migration wait this time). Settings went
+schema 1 -> 3 in one step with a single settings.toml.pre-v3 backup;
+[[monitorRoutingOverrides]] became [routing.arrangements] (mode
+"custom", one arrangement, both monitor UUIDs kept); 19 hotkeys were
+added Unassigned (switchWorkspaceSlot/moveToWorkspaceSlot 1-9,
+closeFocusedWindow); every key of ours survived (188 hotkeys, 18
+workspaces, 13 appRules; gaps, ffm, ipc, swipe and bar keys intact).
+Every real window stayed on its workspace across the restart (0.6.5's
+dwindle persistence). The managed-window count fell 19 -> 10 because
+Notification Centre widgets, QuickShade and omacosy-bar's own windows
+are no longer admitted (0.6.5's structural eligibility). The bar did
+NOT re-establish its workspace-bar watch: no launch/quit observer line
+in its log and no watch child afterwards; `launchctl kickstart -k
+gui/$UID/com.omacosy.bar` brought it back in 1 s. WATCH ITEM. A
+round-trip next/prev through omacosy-omni was verified live and the
+bar followed each switch within 15 ms.
+
+Protocol 13 -> 15 (14 in 0.6.5, 15 in 0.6.6): a no-op switch now
+answers `status: "ignored"`, `code: "no_change"`, `ok: false` — the
+same falsy shape our clients already got as `not_found`, so nothing
+changed for them. New IPC worth using: `window move-to-workspace <id>
+<ws>` moves WITHOUT focusing (ledger #4 resolved; ws-collapse's
+focus-then-verify dance can go), `command close-focused-window` (the
+"OmniWM has NO close-window command" note above is obsolete),
+`switch-workspace slot <n>` / `anywhere <n>`, `move-to-workspace slot
+<n>`, `workspace rename`, `query metrics`, `subscribe --format
+ndjson`. Upstream highlights 0.6.5-0.6.8: dwindle state survives
+restarts (split orientation, ratios, tab groups); Option+drag swaps
+dwindle tiles (ledger #6 resolved); monitor arrangements remembered
+per desk setup; closing a dwindle window keeps you on its workspace;
+focus borders track the real on-screen frame and stay rounded while
+switching; fewer pauses on window switches; workspaces renamable over
+IPC.
+
 ## 0.6.4 (re-upgraded 2026-08-31 evening — final)
 
 Back on 0.6.4 for good: its stale-window retirement fix is the cure
@@ -160,6 +210,8 @@ requires restoring settings.toml.pre-v1 first.
 4. **No move-window-by-id IPC** — `command move-to-workspace` acts on
    the focused window only; external tooling must focus-then-move
    (racy). Feature ask: `window move-to-workspace <id> <ws>`.
+   RESOLVED 0.6.5: `omniwmctl window move-to-workspace <opaque-id>
+   <workspace>` moves without focusing.
 5. **active-workspace (and focus) events fire only when the focused
    WINDOW changes** — measured 2026-08-29: the sequence 14,2,9,2,3,2
    emitted events for 3 and 2 only; every switch to OR from an empty
@@ -171,6 +223,8 @@ requires restoring settings.toml.pre-v1 first.
 6. **Dwindle has no mouse move/swap** — MouseEventHandler's dwindle
    path guards button == .right (resize only); Option+drag move is
    Niri-only.
+   RESOLVED 0.6.5: hold the mouse-move modifier (Option) and drag a
+   dwindle tile to swap it.
 7. (cosmetic) **Their border decorates their own command palette** —
    mismatched-radius outline; persists with borders disabled, so
    likely the palette's own edge drawing.

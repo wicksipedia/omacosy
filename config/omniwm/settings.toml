@@ -1,16 +1,16 @@
-# OmniWM settings for omacosy — FULL canonical file, schemaVersion 1
-# (0.6.4). Upgrades migrate automatically (backup: settings.toml.pre-v1*).
+# OmniWM settings for omacosy — FULL canonical file, schemaVersion 3
+# (0.6.8). Upgrades migrate automatically (backups: settings.toml.pre-v*).
 # Hyper+arrows bind moveColumn.* — on dwindle that is the true tile
 # SWAP; plain move.* (Ctrl+Opt+Shift+arrows) STACKS into the neighbor
 # as a group. Migration strips comments and reorders tables: the repo
 # copy is the reference, the live copy is state; theme-set rewrites
-# [borders.color] per theme. Mirrored 2026-08-31, live-verified.
+# [borders.color] per theme. Mirrored 2026-09-08, live-verified.
 monitorBarOverrides = []
 monitorDwindleOverrides = []
 monitorGapOverrides = []
 monitorNiriOverrides = []
 monitorOrientationOverrides = []
-schemaVersion = 1
+schemaVersion = 3
 
 [appearance]
 mode = "dark"
@@ -143,6 +143,21 @@ widthPercent = 50.0
 
 [routing]
 mode = "custom"
+
+[[routing.arrangements]]
+id = "F41B4194-5274-4235-A3AA-48341F21564B"
+
+[[routing.arrangements.monitors]]
+gridColumn = 0
+gridRow = 0
+monitorDisplayUUID = "BEA94EFA-34B6-4B32-A54B-D0415626AA1D"
+monitorName = "DELL P3424WE"
+
+[[routing.arrangements.monitors]]
+gridColumn = 1
+gridRow = 0
+monitorDisplayUUID = "37D8832A-2D66-02CA-B9F7-8F30A301B230"
+monitorName = "Built-in Retina Display"
 
 [scratchpads]
 
@@ -405,6 +420,78 @@ id = "switchWorkspace.8"
 [[hotkeys]]
 binding = "Unassigned"
 id = "moveToWorkspace.8"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.1"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.1"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.2"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.2"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.3"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.3"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.4"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.4"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.5"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.5"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.6"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.6"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.7"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.7"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.8"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.8"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "switchWorkspaceSlot.9"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "moveToWorkspaceSlot.9"
 
 [[hotkeys]]
 binding = "Control+Option+Command+B"
@@ -903,6 +990,10 @@ binding = "Control+Option+Command+T"
 id = "toggleFocusedWindowFloating"
 
 [[hotkeys]]
+binding = "Unassigned"
+id = "closeFocusedWindow"
+
+[[hotkeys]]
 binding = "Control+Option+M"
 id = "openMenuAnywhere"
 
@@ -929,18 +1020,6 @@ id = "toggleOverview"
 [[hotkeys]]
 binding = "Unassigned"
 id = "toggleSystemStats"
-
-[[monitorRoutingOverrides]]
-gridColumn = 0
-gridRow = 0
-monitorDisplayUUID = "BEA94EFA-34B6-4B32-A54B-D0415626AA1D"
-monitorName = "DELL P3424WE"
-
-[[monitorRoutingOverrides]]
-gridColumn = 1
-gridRow = 0
-monitorDisplayUUID = "37D8832A-2D66-02CA-B9F7-8F30A301B230"
-monitorName = "Built-in Retina Display"
 
 [[workspaces]]
 id = "006FFC60-64D0-466B-80B2-7A57332DCA5C"

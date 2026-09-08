@@ -14,7 +14,7 @@
 
 struct omniwm {
 	int fd;
-	int proto; // negotiated per connection — 0.6.3 speaks 11, 0.6.4 13
+	int proto; // negotiated per connection — 0.6.3 speaks 11, 0.6.4 13, 0.6.5 14, 0.6.6+ 15
 	char token[80];
 	char* rbuf;
 	size_t rlen, rcap;
