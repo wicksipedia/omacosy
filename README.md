@@ -233,6 +233,28 @@ The file is read once at startup, so restart the bar to apply an edit:
 launchctl kickstart -k "gui/$(id -u)/com.omacosy.bar"
 ```
 
+### Adding pills
+
+`~/.config/omacosy/bar-plugins.conf` adds pills without a rebuild. Each
+`[name]` section takes a `command`, run by `/bin/sh -c`, whose first line
+of stdout becomes the label. `interval` is the gap between runs in seconds
+(minimum 1, default 30) and `icon` is an optional glyph.
+
+```
+[cpu]
+command = ps -A -o %cpu | awk '{s+=$1} END {printf "%.0f%%", s/8}'
+interval = 5
+```
+
+Plugin pills sit at the left of the right cluster, in file order. Clicking
+one runs its command again straight away. A name that matches a built-in
+pill is ignored, and so is a section with no `command`. Labels are cut at
+32 characters, because the cluster is laid out from the right edge inwards
+and a long one would push the other pills off screen.
+
+The command is passed to `sh` as an argument, never spliced into a shell
+string. Like the rest of this file it is read once at startup.
+
 ### Workspace icons
 
 You can set workspace icons in the optional

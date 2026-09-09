@@ -623,9 +623,57 @@ let pillModes: [String: String] = {
     return modes
 }()
 
+// A pill defined in ~/.config/omacosy/bar-plugins.conf: an INI section
+// per pill, with a shell command whose stdout becomes the label. This is
+// the escape hatch from rebuilding for every new widget.
+struct BarPlugin {
+    var name = ""
+    var command = ""
+    var icon = ""
+    var interval: TimeInterval = 30
+}
+
+let barPlugins: [BarPlugin] = {
+    let file = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/omacosy/bar-plugins.conf")
+    guard let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
+    var found: [BarPlugin] = []
+    var current: BarPlugin?
+    func flush() {
+        // a section with no command draws nothing, so it is not a pill
+        if let c = current, !c.command.isEmpty { found.append(c) }
+        current = nil
+    }
+    for raw in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        let line = raw.trimmingCharacters(in: .whitespaces)
+        if line.isEmpty || line.hasPrefix("#") { continue }
+        if line.hasPrefix("["), line.hasSuffix("]") {
+            flush()
+            current = BarPlugin(name: String(line.dropFirst().dropLast())
+                .trimmingCharacters(in: .whitespaces))
+            continue
+        }
+        guard current != nil, let eq = line.firstIndex(of: "=") else { continue }
+        let key = line[..<eq].trimmingCharacters(in: .whitespaces)
+        let value = line[line.index(after: eq)...].trimmingCharacters(in: .whitespaces)
+        switch key {
+        case "command": current?.command = value
+        case "icon": current?.icon = value
+        // a runaway interval would spawn a process per frame
+        case "interval": current?.interval = max(1, Double(value) ?? 30)
+        default: break
+        }
+    }
+    flush()
+    // a plugin may not shadow a built-in pill: set() would fight its provider
+    let builtin = Set(rightOrderAll)
+    var seen = Set<String>()
+    return found.filter { !$0.name.isEmpty && !builtin.contains($0.name) && seen.insert($0.name).inserted }
+}()
+
 // A hidden pill also skips its provider, so hiding weather stops the
 // wttr.in fetches and hiding bluetooth never touches the Bluetooth grant.
-let rightOrder = rightOrderAll.filter { pillModes[$0] != "hide" }
+let rightOrder = (barPlugins.map(\.name) + rightOrderAll).filter { pillModes[$0] != "hide" }
 let iconOnly = Set(pillModes.filter { $0.value == "icon" }.keys)
 var rightItems: [String: BarItem] = [:]
 
@@ -653,6 +701,31 @@ func shell(_ launch: String, _ args: [String]) -> String {
     let out = pipe.fileHandleForReading.readDataToEndOfFile()
     p.waitUntilExit()
     return String(data: out, encoding: .utf8) ?? ""
+}
+
+// The command is argv to sh, never spliced into a shell string: the
+// config is the user's own file, but a value carrying a quote should
+// still fail as a command rather than become a second one.
+func runPlugin(_ plugin: BarPlugin) {
+    DispatchQueue.global(qos: .utility).async {
+        let out = shell("/bin/sh", ["-c", plugin.command])
+            .split(separator: "\n").first.map(String.init) ?? ""
+        // the cluster is laid out from the right edge inwards, so an
+        // unbounded label would push every other pill off the left
+        let label = String(out.trimmingCharacters(in: .whitespaces).prefix(32))
+        DispatchQueue.main.async {
+            set(plugin.name) { $0.icon = plugin.icon; $0.label = label }
+        }
+    }
+}
+
+func startPlugins() {
+    for plugin in barPlugins where rightOrder.contains(plugin.name) {
+        runPlugin(plugin)
+        Timer.scheduledTimer(withTimeInterval: plugin.interval, repeats: true) { _ in
+            runPlugin(plugin)
+        }
+    }
 }
 
 // --- clock (no publisher: the one honest timer, aligned to the minute)
@@ -2778,7 +2851,9 @@ final class BarView: NSView {
             DispatchQueue.global(qos: .userInitiated).async {
                 _ = shell("/usr/bin/open", ["-na", terminalApp, "--args", "--title=omacosy-activity", "--command=\(btopBin)"])
             }
-        default: break
+        default:
+            // a plugin pill: clicking asks for a fresh value now
+            if let plugin = barPlugins.first(where: { $0.name == name }) { runPlugin(plugin) }
         }
     }
 
@@ -3648,6 +3723,7 @@ updateBattery()
 updateBrightness()
 updateWifi()
 if rightOrder.contains("weather") { updateWeather() }
+startPlugins()
 repaint()
 primeMedia()
 startOmniWatch() // a no-op under aerospace; the WM observer handles switches
