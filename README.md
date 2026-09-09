@@ -367,7 +367,8 @@ Each theme ships omarchy's full wallpaper set. `Super+Shift+B` (or
 image you like. Switching themes restarts at the theme's first
 wallpaper.
 
-Themes: `tokyo-night`, `catppuccin`, `gruvbox`, `osaka-jade`. Each
+Themes: `tokyo-night`, `catppuccin`, `catppuccin-latte`, `gruvbox`,
+`osaka-jade`. Each
 `themes/<name>/` holds `colors.toml` (omarchy's 22-color palette),
 `sketchybar.sh` / `borders.sh` (bar and ring colors; the file keeps its
 omarchy name and format, and the ring uses the theme accent, omarchy's
