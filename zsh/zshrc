@@ -30,3 +30,8 @@ alias la='eza -lah --group-directories-first --icons=auto'
 alias lt='eza --tree --level=2 --icons=auto'
 alias cat='bat --paging=never'
 alias lg='lazygit'
+
+# ...and one more hook AFTER them. .zshrc.local runs before this stack so
+# a framework there cannot clobber it, but that also means a personal
+# alias there loses to the defaults above. Put the ones that must win here.
+[ -f "$HOME/.zshrc.after" ] && source "$HOME/.zshrc.after"
