@@ -2833,6 +2833,12 @@ final class BarWindow: NSWindow {
 // The bar owns the top strip. OMACOSY_BAR_STACK=1 drops it one bar-height
 // so it can run alongside another bar for comparison, which is how this
 // was built.
+// Breathing room above the pills. The window grows DOWNWARD by this much
+// while its top edge stays on the screen edge, and every pill is placed
+// from the bottom of the view, so the extra height lands above them and
+// no drawing constant has to change.
+let barTopPad: CGFloat = 3
+
 let stackOffset: CGFloat = ProcessInfo.processInfo.environment["OMACOSY_BAR_STACK"] == nil ? 0 : barHeight
 
 // One surface per display. Each owns its screen's workspace set and its
@@ -2854,8 +2860,9 @@ final class BarSurface {
     init(screen: NSScreen, monitorID: String) {
         self.screen = screen
         self.monitorID = monitorID
-        let frame = NSRect(x: screen.frame.minX, y: screen.frame.maxY - barHeight - stackOffset,
-                           width: screen.frame.width, height: barHeight)
+        let frame = NSRect(x: screen.frame.minX,
+                           y: screen.frame.maxY - barHeight - barTopPad - stackOffset,
+                           width: screen.frame.width, height: barHeight + barTopPad)
         window = BarWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -2882,8 +2889,9 @@ final class BarSurface {
     }
 
     func place() {
-        let frame = NSRect(x: screen.frame.minX, y: screen.frame.maxY - barHeight - stackOffset,
-                           width: screen.frame.width, height: barHeight)
+        let frame = NSRect(x: screen.frame.minX,
+                           y: screen.frame.maxY - barHeight - barTopPad - stackOffset,
+                           width: screen.frame.width, height: barHeight + barTopPad)
         window.setFrame(frame, display: true)
         view.frame = NSRect(origin: .zero, size: frame.size)
     }
