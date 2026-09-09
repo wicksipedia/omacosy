@@ -602,7 +602,31 @@ struct BarItem: Equatable {
 }
 
 // screen order, left to right
-let rightOrder = ["weather", "wifi", "bluetooth", "brightness", "volume", "battery", "clock", "activity"]
+let rightOrderAll = ["weather", "wifi", "bluetooth", "brightness", "volume", "battery", "clock", "activity"]
+
+// `<pill> = hide` or `<pill> = icon` per line in
+// ~/.config/omacosy/bar-pills.conf, same shape as workspace-icons.conf.
+// Read once at startup.
+let pillModes: [String: String] = {
+    let file = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/omacosy/bar-pills.conf")
+    guard let text = try? String(contentsOf: file, encoding: .utf8) else { return [:] }
+    var modes: [String: String] = [:]
+    for raw in text.split(separator: "\n") {
+        let line = raw.trimmingCharacters(in: .whitespaces)
+        guard !line.isEmpty, !line.hasPrefix("#"),
+              let eq = line.firstIndex(of: "=") else { continue }
+        let name = line[..<eq].trimmingCharacters(in: .whitespaces)
+        let mode = line[line.index(after: eq)...].trimmingCharacters(in: .whitespaces)
+        modes[name] = mode
+    }
+    return modes
+}()
+
+// A hidden pill also skips its provider, so hiding weather stops the
+// wttr.in fetches and hiding bluetooth never touches the Bluetooth grant.
+let rightOrder = rightOrderAll.filter { pillModes[$0] != "hide" }
+let iconOnly = Set(pillModes.filter { $0.value == "icon" }.keys)
 var rightItems: [String: BarItem] = [:]
 
 func set(_ name: String, _ mutate: (inout BarItem) -> Void) {
@@ -2633,7 +2657,9 @@ final class BarView: NSView {
             let labelFont = chipFont
             let iconColor = item.iconColor ?? palette.label
             let hasIcon = !item.icon.isEmpty
-            let hasLabel = !item.label.isEmpty
+            // icon-only is ignored where there is no icon: the weather pill
+            // keeps its glyph in the label, so suppressing it draws nothing
+            let hasLabel = !item.label.isEmpty && !(hasIcon && iconOnly.contains(name))
             // An icon-only pill is sized and centred on the glyph's INK, so
             // a lopsided side bearing cannot push it off centre. A pill with
             // a label flows icon-then-text, and the gap between them exists
@@ -3545,7 +3571,7 @@ if let store = SCDynamicStoreCreate(nil, "omacosy-bar" as CFString,
 locationGate.start()
 
 // bluetooth: gated on the privacy grant, which the watcher above also needs
-bluetoothWatcher.start()
+if rightOrder.contains("bluetooth") { bluetoothWatcher.start() }
 
 // waking clears the gamma table, so the shade has to be reasserted
 NSWorkspace.shared.notificationCenter.addObserver(
@@ -3580,7 +3606,9 @@ func scheduleClock() {
 }
 scheduleClock()
 
-Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { _ in updateWeather() }
+if rightOrder.contains("weather") {
+    Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { _ in updateWeather() }
+}
 
 // --- go -------------------------------------------------------------------
 
@@ -3603,7 +3631,7 @@ applyShade() // restore the level this machine was left at
 updateBattery()
 updateBrightness()
 updateWifi()
-updateWeather()
+if rightOrder.contains("weather") { updateWeather() }
 repaint()
 primeMedia()
 startOmniWatch() // a no-op under aerospace; the WM observer handles switches

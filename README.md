@@ -210,6 +210,28 @@ If the native menu bar ever gets stuck revealed over the bar (a
 Tahoe bug, most often poked by a Focus mode's menu-bar icon),
 `killall SystemUIServer` resets it.
 
+### Choosing pills
+
+`~/.config/omacosy/bar-pills.conf` sets what each right-cluster pill does,
+one `<name> = <mode>` per line. The names are `weather`, `wifi`,
+`bluetooth`, `brightness`, `volume`, `battery`, `clock` and `activity`.
+The modes are `hide` and `icon`. Lines starting with `#` are comments.
+
+```
+weather = hide
+battery = icon
+```
+
+`hide` also skips the pill's provider, so hiding `weather` stops the
+wttr.in fetches and hiding `bluetooth` never touches the Bluetooth grant.
+`icon` drops the label and keeps the glyph; it is ignored on a pill with no
+icon, because the weather pill keeps its glyph in the label.
+
+The file is read once at startup, so restart the bar to apply an edit:
+
+```sh
+launchctl kickstart -k "gui/$(id -u)/com.omacosy.bar"
+```
 
 ### Workspace icons
 
