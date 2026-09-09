@@ -93,4 +93,23 @@ PY
   fi
 fi
 
+# OmniWM tints its own chrome (overview, command palette) from
+# [appearance] mode, which no theme file carries. Derive it from the
+# palette's background luminance so every theme, present and future, gets
+# it right without a new convention to remember.
+if [ -f "$OMNIWM_SETTINGS" ] && [ -f "$THEMES_DIR/$NAME/colors.toml" ]; then
+  python3 - "$OMNIWM_SETTINGS" "$THEMES_DIR/$NAME/colors.toml" <<'PY'
+import re, sys
+settings, colors = sys.argv[1], sys.argv[2]
+m = re.search(r'^background = "#([0-9a-fA-F]{6})"', open(colors).read(), re.M)
+if m:
+    r, g, b = (int(m.group(1)[i:i+2], 16) / 255 for i in (0, 2, 4))
+    mode = "light" if 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5 else "dark"
+    t = open(settings).read()
+    t2 = re.sub(r'(\[appearance\]\nmode = )"[a-z]+"', r'\1"%s"' % mode, t, count=1)
+    if t2 != t:
+        open(settings, 'w').write(t2)
+PY
+fi
+
 echo "theme: $NAME"

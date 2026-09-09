@@ -375,6 +375,10 @@ omarchy name and format, and the ring uses the theme accent, omarchy's
 own convention), and `backgrounds/` (wallpapers from omarchy's
 MIT-licensed theme packs). Copy a directory to add one.
 
+Under OmniWM, `theme-set` also writes `[appearance] mode` in
+`settings.toml`. It reads the luminance of the theme's `background`
+colour, so a light theme gets light chrome without extra configuration.
+
 ## Tiling: dwindle
 
 ![Three terminals in a dwindle layout — README, git log and btop — accent border ring on the focused one](docs/screenshots/tiling.jpg)
