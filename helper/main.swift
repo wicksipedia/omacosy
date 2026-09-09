@@ -120,6 +120,47 @@ case "cursor":
     guard let e = CGEvent(source: nil) else { exit(1) }
     print("\(Int(e.location.x)),\(Int(e.location.y))")
 
+case "ghostty-reload":
+    // AppleScript addresses an app by bundle, so it reaches ONE instance.
+    // omacosy opens a Ghostty instance per window, so a theme switch left
+    // every other window on the old colours. An Apple Event can be aimed at
+    // a process instead, so aim one at each.
+    let code = { (s: String) -> OSType in
+        s.unicodeScalars.reduce(0) { $0 << 8 | OSType($1.value) }
+    }
+    func specifier(want: OSType, form: OSType, data: NSAppleEventDescriptor,
+                   container: NSAppleEventDescriptor) -> NSAppleEventDescriptor {
+        let r = NSAppleEventDescriptor.record()
+        r.setDescriptor(NSAppleEventDescriptor(typeCode: want), forKeyword: AEKeyword(keyAEDesiredClass))
+        r.setDescriptor(NSAppleEventDescriptor(enumCode: form), forKeyword: AEKeyword(keyAEKeyForm))
+        r.setDescriptor(data, forKeyword: AEKeyword(keyAEKeyData))
+        r.setDescriptor(container, forKeyword: AEKeyword(keyAEContainer))
+        return r.coerce(toDescriptorType: DescType(typeObjectSpecifier)) ?? r
+    }
+    // "terminal 1 of front window": the action reloads the whole config but
+    // still wants a surface to act on
+    let frontWindow = specifier(want: code("prop"), form: code("prop"),
+                                data: NSAppleEventDescriptor(typeCode: code("GFWn")),
+                                container: NSAppleEventDescriptor.null())
+    let terminal = specifier(want: code("Gtrm"), form: code("indx"),
+                             data: NSAppleEventDescriptor(int32: 1), container: frontWindow)
+
+    var reloaded = 0
+    let running = NSRunningApplication.runningApplications(withBundleIdentifier: "com.mitchellh.ghostty")
+    for app in running {
+        let event = NSAppleEventDescriptor(
+            eventClass: code("Ghst"), eventID: code("PfAc"),
+            targetDescriptor: NSAppleEventDescriptor(processIdentifier: app.processIdentifier),
+            returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID))
+        event.setDescriptor(NSAppleEventDescriptor(string: "reload_config"), forKeyword: AEKeyword(keyDirectObject))
+        event.setDescriptor(terminal, forKeyword: AEKeyword(code("GonT")))
+        // an instance with no window answers with an error, which is not a
+        // failure worth reporting: it has nothing to repaint
+        if (try? event.sendEvent(options: [.waitForReply], timeout: 2)) != nil { reloaded += 1 }
+    }
+    print("\(reloaded)/\(running.count)")
+
 case "displays":
     // arrangement-ordered (left to right, matching AeroSpace/sketchybar
     // numbering): "<index><TAB><1 if notched else 0>"

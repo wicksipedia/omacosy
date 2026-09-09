@@ -210,6 +210,7 @@ If the native menu bar ever gets stuck revealed over the bar (a
 Tahoe bug, most often poked by a Focus mode's menu-bar icon),
 `killall SystemUIServer` resets it.
 
+
 ### Workspace icons
 
 You can set workspace icons in the optional
@@ -378,6 +379,19 @@ MIT-licensed theme packs). Copy a directory to add one.
 Under OmniWM, `theme-set` also writes `[appearance] mode` in
 `settings.toml`. It reads the luminance of the theme's `background`
 colour, so a light theme gets light chrome without extra configuration.
+
+`theme-set` also writes `~/.config/omacosy/ghostty-theme` from the palette
+and asks Ghostty to reload. The Ghostty config includes that file, so the
+terminal follows the desktop theme. Do not set `theme` in
+`~/Library/Application Support/com.mitchellh.ghostty/config.ghostty`: macOS
+config files load after the XDG one, so it would win.
+
+The reload goes through `omacosy-helper ghostty-reload`, not `SIGUSR2`.
+Ghostty reloads on that signal only on Linux; on macOS it accepts the
+signal and ignores it, which looks like success from the sending side. The
+helper aims one Apple Event at each Ghostty process, because omacosy opens
+an instance per window while AppleScript addresses an app by bundle and so
+would reach only one of them.
 
 ## Tiling: dwindle
 
