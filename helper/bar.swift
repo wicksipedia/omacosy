@@ -526,21 +526,23 @@ func setFocused(_ ws: String) {
     for surface in surfaces where surface.mine.contains(ws) { surface.visible = ws }
 }
 
-// --- media (Spotify announces itself; the title needs no subprocess) -------
-// media.sh spawns osascript to ask what is playing. Spotify's own
-// PlaybackStateChanged notification already carries Name, Artist and
-// Player State, so the only subprocess left is the one a click sends —
-// and that is user-initiated, where 20 ms does not show.
+// --- media (Apple Music announces itself; the title needs no subprocess) --
+// Apple Music posts a playback notification on every change, and that
+// payload already carries Name, Artist and Player State. So the only
+// subprocess left is the one a click sends — user-initiated, where 20 ms
+// does not show.
 
-let spotifyBundleID = "com.spotify.client"
+let musicBundleID = "com.apple.Music"
+// Apple Music posts its playback notification under the old iTunes name.
+let musicNotification = "com.apple.iTunes.playerInfo"
 
-func spotifyRunning() -> Bool {
-    !NSRunningApplication.runningApplications(withBundleIdentifier: spotifyBundleID).isEmpty
+func musicRunning() -> Bool {
+    !NSRunningApplication.runningApplications(withBundleIdentifier: musicBundleID).isEmpty
 }
 
 func updateMedia(from info: [AnyHashable: Any]? = nil) {
     var next = Media()
-    next.running = spotifyRunning()
+    next.running = musicRunning()
     if next.running {
         if let info {
             next.playing = (info["Player State"] as? String) == "Playing"
@@ -563,10 +565,10 @@ func updateMedia(from info: [AnyHashable: Any]? = nil) {
 // startup only: the notification fires on change, so the current track
 // has to be asked for once
 func primeMedia() {
-    guard spotifyRunning() else { return }
+    guard musicRunning() else { return }
     rebuildQueue.async {
         let script = """
-        tell application "Spotify" to if it is running then \
+        tell application "Music" to if it is running then \
         return (player state as text) & "|" & artist of current track & "|" & name of current track
         """
         let out = shell("/usr/bin/osascript", ["-e", script])
@@ -581,9 +583,9 @@ func primeMedia() {
     }
 }
 
-func spotify(_ command: String) {
+func music(_ command: String) {
     DispatchQueue.global(qos: .userInitiated).async {
-        _ = shell("/usr/bin/osascript", ["-e", "tell application \"Spotify\" to \(command)"])
+        _ = shell("/usr/bin/osascript", ["-e", "tell application \"Music\" to \(command)"])
     }
 }
 
@@ -2713,11 +2715,11 @@ final class BarView: NSView {
         if let part = mediaRects.first(where: { $0.1.contains(p) })?.0 {
             closePopup()
             switch part {
-            case "prev": spotify("previous track")
-            case "play": spotify("playpause")
-            case "next": spotify("next track")
+            case "prev": music("previous track")
+            case "play": music("playpause")
+            case "next": music("next track")
             default:
-                if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: spotifyBundleID) {
+                if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: musicBundleID) {
                     NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
                 }
             }
@@ -3554,14 +3556,14 @@ NSWorkspace.shared.notificationCenter.addObserver(
 // already carries the track — so the pill repaints without asking anyone
 // anything. Launch and quit are the one pair it cannot announce.
 DistributedNotificationCenter.default().addObserver(
-    forName: NSNotification.Name("\(spotifyBundleID).PlaybackStateChanged"), object: nil, queue: .main
+    forName: NSNotification.Name(musicNotification), object: nil, queue: .main
 ) { note in updateMedia(from: note.userInfo) }
 
 for event in [NSWorkspace.didLaunchApplicationNotification,
               NSWorkspace.didTerminateApplicationNotification] {
     NSWorkspace.shared.notificationCenter.addObserver(forName: event, object: nil, queue: .main) { note in
         guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-              app.bundleIdentifier == spotifyBundleID else { return }
+              app.bundleIdentifier == musicBundleID else { return }
         if event == NSWorkspace.didLaunchApplicationNotification { primeMedia() } else { updateMedia() }
     }
 }
