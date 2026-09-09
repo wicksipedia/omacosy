@@ -2476,6 +2476,14 @@ let gap: CGFloat = 14
 // RESOLVED choice (apps.local.conf overrides already applied) next to the
 // other daemon configs, because a launchd agent cannot read the repo when
 // the clone sits under ~/Documents — which is exactly where this one is.
+// login(1) execs the command with the system PATH, which has no Homebrew
+// prefix on it, so `btop` by name is "No such file or directory".
+// The absolute path goes to Ghostty as --command, NOT -e: -e raises a
+// confirmation dialog every time, by design, because letting any process
+// tell a terminal what to run is the hole GHSA-q9fg-cpmh-c78x closed.
+let btopBin = ["/opt/homebrew/bin/btop", "/usr/local/bin/btop"]
+    .first { FileManager.default.isExecutableFile(atPath: $0) } ?? "btop"
+
 let terminalApp: String = {
     let config = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".config/omacosy/apps.conf")
@@ -2768,7 +2776,7 @@ final class BarView: NSView {
                 URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")!)
         case "activity":
             DispatchQueue.global(qos: .userInitiated).async {
-                _ = shell("/usr/bin/open", ["-na", terminalApp, "--args", "--title=omacosy-activity", "-e", "btop"])
+                _ = shell("/usr/bin/open", ["-na", terminalApp, "--args", "--title=omacosy-activity", "--command=\(btopBin)"])
             }
         default: break
         }
