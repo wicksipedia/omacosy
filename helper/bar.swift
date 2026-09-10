@@ -605,7 +605,7 @@ struct BarItem: Equatable {
 }
 
 // screen order, left to right
-let rightOrderAll = ["weather", "wifi", "bluetooth", "brightness", "volume", "battery", "clock", "activity"]
+let rightOrderAll = ["weather", "wifi", "bluetooth", "brightness", "mic", "volume", "battery", "clock", "activity"]
 
 // `<pill> = hide` or `<pill> = icon` per line in
 // ~/.config/omacosy/bar-pills.conf, same shape as workspace-icons.conf.
@@ -747,17 +747,22 @@ func pluginPopupRows(_ raw: [[String: Any]]) -> [PopupRow] {
     }
 }
 
+func pluginEnv(_ plugin: BarPlugin) -> [String: String] {
+    // launchd hands this process a bare PATH, so a plugin naming its
+    // own script or a Homebrew binary would silently find nothing.
+    // Put the places a command is actually installed in front of it.
+    var env = ProcessInfo.processInfo.environment
+    env["PATH"] = "\(NSHomeDirectory())/.local/bin:/opt/homebrew/bin:/usr/local/bin:"
+        + (env["PATH"] ?? "/usr/bin:/bin")
+    // the configured icon, so a command can decorate it rather than
+    // having to hardcode the glyph its own config already names
+    env["OMACOSY_PILL_ICON"] = plugin.icon
+    return env
+}
+
 func runPlugin(_ plugin: BarPlugin) {
     DispatchQueue.global(qos: .utility).async {
-        // launchd hands this process a bare PATH, so a plugin naming its
-        // own script or a Homebrew binary would silently find nothing.
-        // Put the places a command is actually installed in front of it.
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "\(NSHomeDirectory())/.local/bin:/opt/homebrew/bin:/usr/local/bin:"
-            + (env["PATH"] ?? "/usr/bin:/bin")
-        // the configured icon, so a command can decorate it rather than
-        // having to hardcode the glyph its own config already names
-        env["OMACOSY_PILL_ICON"] = plugin.icon
+        let env = pluginEnv(plugin)
         let out = shell("/bin/sh", ["-c", plugin.command], env: env)
         // A command may answer with a JSON object to set a colour and
         // popup rows. Anything else is a plain label, which stays the
@@ -834,6 +839,50 @@ func defaultOutputDevice() -> AudioDeviceID {
     var size = UInt32(MemoryLayout<AudioDeviceID>.size)
     AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id)
     return id
+}
+
+func defaultInputDevice() -> AudioDeviceID {
+    var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
+                                          mScope: kAudioObjectPropertyScopeGlobal,
+                                          mElement: kAudioObjectPropertyElementMain)
+    var id = AudioDeviceID(0)
+    var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+    AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id)
+    return id
+}
+
+// A device with no mute switch is muted by having its input volume taken
+// to zero instead, so a pill that only read the switch would miss it.
+func micMuted() -> Bool {
+    let dev = defaultInputDevice()
+    guard dev != 0 else { return false }
+
+    var muted: UInt32 = 0
+    var muteAddr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyMute,
+                                              mScope: kAudioDevicePropertyScopeInput,
+                                              mElement: kAudioObjectPropertyElementMain)
+    var muteSize = UInt32(MemoryLayout<UInt32>.size)
+    if AudioObjectGetPropertyData(dev, &muteAddr, 0, nil, &muteSize, &muted) == noErr, muted != 0 {
+        return true
+    }
+
+    var level: Float32 = -1
+    var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyVolumeScalar,
+                                          mScope: kAudioDevicePropertyScopeInput,
+                                          mElement: kAudioObjectPropertyElementMain)
+    var size = UInt32(MemoryLayout<Float32>.size)
+    guard AudioObjectGetPropertyData(dev, &addr, 0, nil, &size, &level) == noErr else { return false }
+    return level <= 0.0001
+}
+
+// the pill exists to say the microphone is off, so it draws only then
+func updateMic() {
+    let muted = micMuted()
+    set("mic") {
+        $0.drawing = muted
+        $0.icon = muted ? "\u{F036D}" : ""
+        $0.iconColor = muted ? palette.red : nil
+    }
 }
 
 func volumeAddress(_ element: UInt32) -> AudioObjectPropertyAddress {
@@ -3710,6 +3759,42 @@ func attachVolumeListeners() {
         }
     }
     updateVolume()
+}
+
+// the microphone: same shape, on the default INPUT device
+var micListeners: [(AudioObjectID, AudioObjectPropertyAddress, AudioObjectPropertyListenerBlock)] = []
+
+func attachMicListeners() {
+    for (object, address, block) in micListeners {
+        var a = address
+        AudioObjectRemovePropertyListenerBlock(object, &a, DispatchQueue.main, block)
+    }
+    micListeners.removeAll()
+
+    let dev = defaultInputDevice()
+    guard dev != 0 else { return }
+    let block: AudioObjectPropertyListenerBlock = { _, _ in updateMic() }
+    for selector in [kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyMute] {
+        var addr = AudioObjectPropertyAddress(mSelector: selector,
+                                              mScope: kAudioDevicePropertyScopeInput,
+                                              mElement: kAudioObjectPropertyElementMain)
+        if AudioObjectAddPropertyListenerBlock(dev, &addr, DispatchQueue.main, block) == noErr {
+            micListeners.append((dev, addr, block))
+        }
+    }
+    updateMic()
+}
+
+if rightOrder.contains("mic") {
+    var defaultInputAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDefaultInputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain)
+    AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject),
+                                        &defaultInputAddress, DispatchQueue.main) { _, _ in
+        attachMicListeners()
+    }
+    attachMicListeners()
 }
 
 var defaultDeviceAddress = AudioObjectPropertyAddress(

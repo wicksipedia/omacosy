@@ -257,6 +257,7 @@ string. It runs with `~/.local/bin` and the Homebrew prefixes ahead of
 `PATH`, so a plugin can name a script or a `brew` binary directly. Like the
 rest of this file it is read once at startup.
 
+
 A command that prints a JSON object instead of a line can also set the
 pill's colour and give it a popup:
 
@@ -285,6 +286,10 @@ right-aligned readout rather than a label, so put the label on the row
 above. Give a pill rows and clicking it opens the popup instead of
 re-running the command.
 
+A pill draws nothing while its label and its icon are both empty, which is
+how a pill reports a state worth no space at all. Send `"icon": ""` to hide
+one, because an absent `icon` falls back to the glyph the config names.
+
 `omacosy-claude-usage` ships as an example. It colours the pill by how far
 into the five-hour window you are, and opens a popup with that window, the
 weekly one, each per-model weekly window, and any extra usage credits.
@@ -303,6 +308,26 @@ statusline payload saved by `omacosy-claude-statusline`, which needs
 neither. That payload has only the five-hour and weekly windows, and after
 a window rolls over with no session running it reports `--` rather than a
 percentage for a window that no longer exists.
+
+### Microphone and Keep Awake pills
+
+`omacosy-keep-awake` is another example pill. It shows a cup while
+something is deliberately keeping the Mac awake, and hides otherwise. It
+names no particular app: it reads the power assertions, and ignores the
+ones held from the system's own directories, because powerd, coreaudiod
+and sharingd hold one as a matter of course. It also ignores an assertion
+held by a coding agent, which is a short lease on the machine rather than
+a setting you left on. Reading the assertion rather than an app's saved
+setting means it still reports the truth after the app holding it quits.
+Clicking it lists what is holding the Mac awake and how long each has held
+it.
+
+The microphone pill is not a plugin. It is built in, because CoreAudio
+costs about 65 ms to open in a fresh process and the bar already holds it
+open for the volume pill. It shows a struck-through microphone while the
+default input device is muted and nothing at all otherwise, and it follows
+a property listener, so it changes the moment the microphone does rather
+than at the next poll.
 
 ### Workspace icons
 

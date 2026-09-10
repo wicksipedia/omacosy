@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Print a bar pill while something is deliberately keeping the Mac awake."""
+
+import json
+import re
+import subprocess
+
+AWAKE_ICON = "\U000f0176"
+
+
+# Background daemons hold an idle assertion as a matter of course: powerd
+# while a display is on, coreaudiod while anything plays, sharingd for
+# Handoff. They live in the system's own directories, which separates them
+# from a deliberate choice without keeping a list of their names.
+SYSTEM_PREFIXES = ("/System/", "/usr/libexec/", "/usr/sbin/")
+
+ASSERTION = re.compile(
+    # pmset prints an assertion id in brackets between the owner and the age
+    r"^\s*pid (\d+)\(([^)]+)\):\s*(?:\[[^\]]*\]\s*)?(\S+)\s+"
+    r"PreventUserIdleSystemSleep")
+
+
+# Claude Code holds a short assertion while it works. It is not a setting
+# you chose, and it lapses on its own, so it is noise in a pill about what
+# you left switched on.
+AGENT_PARENTS = {"claude"}
+
+
+def process(pid):
+    """(executable, parent pid) for one process.
+
+    Asked per holder rather than from a full listing: there are a handful
+    of assertions and some hundreds of processes.
+    """
+    try:
+        out = subprocess.run(["/bin/ps", "-o", "comm=,ppid=", "-p", pid],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return "", ""
+    parts = out.stdout.split()
+    return (parts[0], parts[-1]) if len(parts) >= 2 else ("", "")
+
+
+def holders():
+    """Name whatever is deliberately keeping the Mac awake.
+
+    Read the assertions rather than any app's saved setting: the assertion
+    is what actually holds the Mac up, so this still reads empty after the
+    app holding it quits with the setting left on.
+    """
+    try:
+        out = subprocess.run(["/usr/bin/pmset", "-g", "assertions"],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    found = []
+    for line in out.stdout.splitlines():
+        m = ASSERTION.match(line)
+        if not m or any(m.group(2) == name for name, _ in found):
+            continue
+        executable, parent = process(m.group(1))
+        if executable.startswith(SYSTEM_PREFIXES):
+            continue
+        if process(parent)[0].rsplit("/", 1)[-1] in AGENT_PARENTS:
+            continue
+        found.append((m.group(2), m.group(3)))
+    return found
+
+
+# nothing holding it is the ordinary state, and a pill for the ordinary
+# state is one more thing to read past
+awake = holders()
+if not awake:
+    print(json.dumps({"label": "", "icon": ""}))
+    raise SystemExit
+
+rows = [{"text": "Keeping the Mac awake", "hero": True}, {"separator": True}]
+rows += [{"text": name, "detail": held} for name, held in awake]
+print(json.dumps({"label": "", "icon": AWAKE_ICON, "color": "accent",
+                  "rows": rows}, ensure_ascii=False))
