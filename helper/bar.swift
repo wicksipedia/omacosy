@@ -676,6 +676,8 @@ let barPlugins: [BarPlugin] = {
 let rightOrder = (barPlugins.map(\.name) + rightOrderAll).filter { pillModes[$0] != "hide" }
 let iconOnly = Set(pillModes.filter { $0.value == "icon" }.keys)
 var rightItems: [String: BarItem] = [:]
+// popup rows a plugin last returned, keyed by pill name
+var pluginRows: [String: [PopupRow]] = [:]
 
 func set(_ name: String, _ mutate: (inout BarItem) -> Void) {
     var item = rightItems[name] ?? BarItem()
@@ -690,10 +692,11 @@ func set(_ name: String, _ mutate: (inout BarItem) -> Void) {
     tlog(String(format: "item %@ %.2f ms", name, Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000))
 }
 
-func shell(_ launch: String, _ args: [String]) -> String {
+func shell(_ launch: String, _ args: [String], env: [String: String]? = nil) -> String {
     let p = Process()
     p.executableURL = URL(fileURLWithPath: launch)
     p.arguments = args
+    if let env { p.environment = env }
     let pipe = Pipe()
     p.standardOutput = pipe
     p.standardError = FileHandle.nullDevice
@@ -706,15 +709,55 @@ func shell(_ launch: String, _ args: [String]) -> String {
 // The command is argv to sh, never spliced into a shell string: the
 // config is the user's own file, but a value carrying a quote should
 // still fail as a command rather than become a second one.
+// palette is read on the main thread only: a theme switch rewrites it,
+// and a plugin resolves its colour one interval later either way
+func pluginColor(_ name: String?) -> NSColor? {
+    switch name {
+    case "accent": return palette.accent
+    case "label": return palette.label
+    case "muted": return palette.muted
+    case "red": return palette.red
+    case "green": return palette.green
+    case "yellow": return palette.yellow
+    default: return nil
+    }
+}
+
+func pluginPopupRows(_ raw: [[String: Any]]) -> [PopupRow] {
+    raw.map {
+        PopupRow(text: $0["text"] as? String ?? "",
+                 detail: $0["detail"] as? String ?? "",
+                 separator: $0["separator"] as? Bool ?? false,
+                 hero: $0["hero"] as? Bool ?? false,
+                 dim: $0["dim"] as? Bool ?? false,
+                 slider: $0["slider"] as? Double)
+    }
+}
+
 func runPlugin(_ plugin: BarPlugin) {
     DispatchQueue.global(qos: .utility).async {
-        let out = shell("/bin/sh", ["-c", plugin.command])
-            .split(separator: "\n").first.map(String.init) ?? ""
+        // launchd hands this process a bare PATH, so a plugin naming its
+        // own script or a Homebrew binary would silently find nothing.
+        // Put the places a command is actually installed in front of it.
+        var env = ProcessInfo.processInfo.environment
+        env["PATH"] = "\(NSHomeDirectory())/.local/bin:/opt/homebrew/bin:/usr/local/bin:"
+            + (env["PATH"] ?? "/usr/bin:/bin")
+        let out = shell("/bin/sh", ["-c", plugin.command], env: env)
+        // A command may answer with a JSON object to set a colour and
+        // popup rows. Anything else is a plain label, which stays the
+        // common case and needs no quoting.
+        let obj = out.data(using: .utf8)
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]
         // the cluster is laid out from the right edge inwards, so an
         // unbounded label would push every other pill off the left
-        let label = String(out.trimmingCharacters(in: .whitespaces).prefix(32))
+        let plain = out.split(separator: "\n").first.map(String.init) ?? ""
+        let label = String((obj?["label"] as? String ?? plain)
+            .trimmingCharacters(in: .whitespaces).prefix(32))
         DispatchQueue.main.async {
-            set(plugin.name) { $0.icon = plugin.icon; $0.label = label }
+            pluginRows[plugin.name] = pluginPopupRows(obj?["rows"] as? [[String: Any]] ?? [])
+            let color = pluginColor(obj?["color"] as? String)
+            let icon = obj?["icon"] as? String ?? plugin.icon
+            set(plugin.name) { $0.icon = icon; $0.label = label; $0.iconColor = color }
         }
     }
 }
@@ -1825,7 +1868,7 @@ func popupRows(for name: String) -> [PopupRow] {
     case "wifi": return wifiRows()
     case "bluetooth": return bluetoothRows()
     case "appmenu": return appMenuRows()
-    default: return []
+    default: return pluginRows[name] ?? []
     }
 }
 

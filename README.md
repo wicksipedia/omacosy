@@ -253,7 +253,38 @@ pill is ignored, and so is a section with no `command`. Labels are cut at
 and a long one would push the other pills off screen.
 
 The command is passed to `sh` as an argument, never spliced into a shell
-string. Like the rest of this file it is read once at startup.
+string. It runs with `~/.local/bin` and the Homebrew prefixes ahead of
+`PATH`, so a plugin can name a script or a `brew` binary directly. Like the
+rest of this file it is read once at startup.
+
+A command that prints a JSON object instead of a line can also set the
+pill's colour and give it a popup:
+
+```json
+{
+  "label": "10% - 2h 6m",
+  "color": "green",
+  "rows": [
+    {"text": "Claude usage", "hero": true},
+    {"separator": true},
+    {"text": "Session", "detail": "10%"},
+    {"text": "5-hour window", "slider": 0.1},
+    {"text": "Resets in 2h 6m", "dim": true}
+  ]
+}
+```
+
+`color` is one of `accent`, `label`, `muted`, `red`, `green` or `yellow`,
+resolved from the current theme. `icon` overrides the config. A `slider`
+between 0 and 1 draws a progress track. Give a pill rows and clicking it
+opens the popup instead of re-running the command.
+
+`omacosy-claude-usage` ships as an example: it reports the Claude Code
+five-hour and weekly windows, colours the pill by how far into the
+five-hour window you are, and opens a popup with both. It reads the rate
+limits Claude Code hands its statusline and makes no API call, so after a
+window rolls over with no session running it reports `--` rather than a
+percentage for a window that no longer exists.
 
 ### Workspace icons
 
