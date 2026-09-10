@@ -393,6 +393,14 @@ helper aims one Apple Event at each Ghostty process, because omacosy opens
 an instance per window while AppleScript addresses an app by bundle and so
 would reach only one of them.
 
+herdr follows too. `theme-set` writes `[theme] name` in
+`~/.config/herdr/config.toml` and runs `herdr server reload-config`. It
+does not keep a copy of herdr's theme list: it writes this theme's name,
+and an unknown one comes back as a reload diagnostic, which falls back to
+herdr's `terminal` theme. Prefer a real match where one exists. `terminal`
+takes the host palette, but reads its text colour from the ANSI white
+slot, so on a light theme the sidebar turns pale grey.
+
 ## Tiling: dwindle
 
 ![Three terminals in a dwindle layout — README, git log and btop — accent border ring on the focused one](docs/screenshots/tiling.jpg)

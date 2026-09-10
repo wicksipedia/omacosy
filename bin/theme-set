@@ -144,4 +144,46 @@ PY
   "$HOME/.local/bin/omacosy-helper" ghostty-reload >/dev/null 2>&1 || true
 fi
 
+# herdr ships its own themes. Ask it whether it has one under this
+# theme's name rather than keeping a copy of its list in sync: an
+# unknown name comes back as a reload diagnostic, and "terminal" — which
+# takes the host palette — is the fallback for everything else.
+HERDR_CFG="$HOME/.config/herdr/config.toml"
+# Resolved by path, not by PATH: the theme chord runs this from Karabiner,
+# which passes a bare PATH with no Homebrew prefix on it, so `command -v`
+# alone skipped the whole block and herdr silently kept the old theme.
+HERDR_BIN=""
+for candidate in "$(command -v herdr 2>/dev/null || true)" \
+                 /opt/homebrew/bin/herdr /usr/local/bin/herdr; do
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then HERDR_BIN="$candidate"; break; fi
+done
+
+herdr_set_theme() {
+  python3 - "$HERDR_CFG" "$1" <<'@D@'
+import re, sys
+cfg, theme = sys.argv[1], sys.argv[2]
+t = open(cfg).read()
+# scope the edit to [theme]: a name key in another table is not ours
+sec = re.search(r'^\[theme\]\n(?:(?!\[).*\n)*', t, re.M)
+if sec:
+    # subn, not a string compare: rewriting a name to the value it
+    # already holds is indistinguishable from never matching at all
+    body, hits = re.subn(r'^name = ".*"$', 'name = "%s"' % theme,
+                         sec.group(0), count=1, flags=re.M)
+    if not hits:
+        body = sec.group(0).replace("[theme]\n", '[theme]\nname = "%s"\n' % theme, 1)
+    t = t[:sec.start()] + body + t[sec.end():]
+else:
+    t = t.rstrip("\n") + '\n\n[theme]\nname = "%s"\n' % theme
+open(cfg, "w").write(t)
+@D@
+  "$HERDR_BIN" server reload-config 2>/dev/null
+}
+
+if [ -f "$HERDR_CFG" ] && [ -n "$HERDR_BIN" ]; then
+  case "$(herdr_set_theme "$NAME")" in
+    *"unknown theme name"*) herdr_set_theme terminal >/dev/null ;;
+  esac
+fi
+
 echo "theme: $NAME"
