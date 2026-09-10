@@ -308,6 +308,15 @@ struct Palette {
     var yellow = NSColor.systemYellow
 }
 
+extension NSColor {
+    // The bar window is not opaque, so the window server takes the window's
+    // click shape from the alpha channel. A pill at alpha 0 draws correctly
+    // but stops accepting clicks anywhere except the glyph strokes.
+    var clickable: NSColor {
+        alphaComponent > 0 ? self : withAlphaComponent(0.01)
+    }
+}
+
 func color(fromARGB v: UInt64) -> NSColor {
     NSColor(srgbRed: CGFloat((v >> 16) & 0xff) / 255,
             green: CGFloat((v >> 8) & 0xff) / 255,
@@ -326,7 +335,7 @@ func loadPalette() -> Palette {
         guard parts.count == 2, parts[1].hasPrefix("0x"),
               let v = UInt64(parts[1].dropFirst(2), radix: 16) else { continue }
         switch parts[0] {
-        case "ITEM_BG": p.itemBG = color(fromARGB: v)
+        case "ITEM_BG": p.itemBG = color(fromARGB: v).clickable
         case "ROW_BG": p.rowBG = color(fromARGB: v); sawRowBG = true
         case "ACCENT": p.accent = color(fromARGB: v)
         case "LABEL_COLOR": p.label = color(fromARGB: v)
