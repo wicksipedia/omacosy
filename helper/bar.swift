@@ -598,6 +598,9 @@ struct BarItem: Equatable {
     var icon = ""
     var label = ""
     var iconColor: NSColor?
+    // a colour emoji draws its own colours and ignores an icon tint, so a
+    // plugin's colour has to be able to land on the label instead
+    var labelColor: NSColor?
     var drawing = true
 }
 
@@ -757,7 +760,12 @@ func runPlugin(_ plugin: BarPlugin) {
             pluginRows[plugin.name] = pluginPopupRows(obj?["rows"] as? [[String: Any]] ?? [])
             let color = pluginColor(obj?["color"] as? String)
             let icon = obj?["icon"] as? String ?? plugin.icon
-            set(plugin.name) { $0.icon = icon; $0.label = label; $0.iconColor = color }
+            set(plugin.name) {
+                $0.icon = icon
+                $0.label = label
+                $0.iconColor = color
+                $0.labelColor = color
+            }
         }
     }
 }
@@ -2804,7 +2812,7 @@ final class BarView: NSView {
                                             width: iconInk, height: pill.height))
             }
             if hasLabel {
-                drawText(item.label, labelFont, palette.label,
+                drawText(item.label, labelFont, item.labelColor ?? palette.label,
                          leftAt: pill.minX + 10 + iconInk + innerGap, midY: pill.midY)
             }
             itemRects.append((name, NSRect(x: pill.minX, y: 0, width: width, height: barHeight)))

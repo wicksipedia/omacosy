@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Claude usage for a bar pill, as the JSON a bar plugin can return.
+#
+# The numbers are the ones Claude Code hands its own statusline, which
+# oh-my-claudecode caches on every render. Nothing here calls an API, so
+# the figures are only as fresh as the last render: with no Claude Code
+# session open they stop moving, and the pill says so rather than
+# reporting a stale percentage as current.
+set -uo pipefail
+
+CACHE="${OMC_HUD_CACHE:-$HOME/.claude/hud/.omc/state/hud-stdin-cache.json}"
+[ -f "$CACHE" ] || { printf '{"label":""}\n'; exit 0; }
+
+python3 - "$CACHE" <<'PY'
+import json, sys, time
+
+try:
+    limits = (json.load(open(sys.argv[1])).get("rate_limits") or {})
+except (ValueError, OSError):
+    print('{"label":""}')
+    raise SystemExit
+
+now = time.time()
+
+def window(key):
+    w = limits.get(key) or {}
+    pct, resets = w.get("used_percentage"), w.get("resets_at")
+    # a reset time in the past means the window rolled over while no
+    # session was running, so the cached percentage describes a window
+    # that no longer exists
+    if pct is None or resets is None or resets <= now:
+        return None, None
+    return pct, resets
+
+def countdown(resets):
+    left = int(resets - now)
+    h, m = divmod(left // 60, 60)
+    return "%dh %dm" % (h, m) if h else "%dm" % m
+
+five_pct, five_reset = window("five_hour")
+week_pct, week_reset = window("seven_day")
+
+if five_pct is None and week_pct is None:
+    print(json.dumps({"label": "--", "color": "muted", "rows": [
+        {"text": "Claude usage", "hero": True},
+        {"text": "No current window", "dim": True},
+        {"text": "Open a Claude Code session to refresh", "dim": True},
+    ]}))
+    raise SystemExit
+
+rows = [{"text": "Claude usage", "hero": True}, {"separator": True}]
+
+# the windows are reported independently: the five-hour one ends overnight
+# while the weekly one is still days from resetting, and a five-hour figure
+# that describes a dead window is no reason to hide a good weekly one
+if five_pct is not None:
+    label = "%d%% \u00b7 %s" % (five_pct, countdown(five_reset))
+    color = "green" if five_pct < 50 else "yellow" if five_pct < 80 else "red"
+    # a slider row's text is a right-aligned readout in a narrow gutter,
+    # not a label: anything long draws over the track
+    rows += [{"text": "Session, 5-hour", "detail": "%d%%" % five_pct},
+             {"text": "", "slider": five_pct / 100.0},
+             {"text": "Resets in " + countdown(five_reset), "dim": True}]
+else:
+    label, color = "--", "muted"
+    rows += [{"text": "Session, 5-hour", "detail": "--"},
+             {"text": "Window ended since the last session", "dim": True}]
+
+if week_pct is not None:
+    rows += [{"separator": True},
+             {"text": "All models, weekly", "detail": "%d%%" % week_pct},
+             {"text": "", "slider": week_pct / 100.0},
+             {"text": "Resets in " + countdown(week_reset), "dim": True}]
+
+print(json.dumps({"label": label, "color": color, "rows": rows}))
+PY
