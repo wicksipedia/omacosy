@@ -283,11 +283,20 @@ right-aligned readout rather than a label, so put the label on the row
 above. Give a pill rows and clicking it opens the popup instead of
 re-running the command.
 
-`omacosy-claude-usage` ships as an example: it reports the Claude Code
-five-hour and weekly windows, colours the pill by how far into the
-five-hour window you are, and opens a popup with both. It reads the rate
-limits Claude Code hands its statusline and makes no API call, so after a
-window rolls over with no session running it reports `--` rather than a
+`omacosy-claude-usage` ships as an example. It colours the pill by how far
+into the five-hour window you are, and opens a popup with that window, the
+weekly one, each per-model weekly window, and any extra usage credits.
+
+It reads Anthropic's OAuth usage endpoint with the Claude CLI's own token,
+caching the answer for five minutes, because only that endpoint carries the
+per-model and credit figures. It never refreshes the token and never writes
+to the credential store: a third party rewriting the CLI's own credentials
+can race Claude Code and log you out.
+
+When the token is expired or the network is gone it falls back to the
+statusline payload saved by `omacosy-claude-statusline`, which needs
+neither. That payload has only the five-hour and weekly windows, and after
+a window rolls over with no session running it reports `--` rather than a
 percentage for a window that no longer exists.
 
 ### Workspace icons

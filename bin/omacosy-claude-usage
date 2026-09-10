@@ -1,86 +1,262 @@
-#!/usr/bin/env bash
-# Claude usage for a bar pill, as the JSON a bar plugin can return.
-#
-# The numbers are the ones Claude Code hands its own statusline. Claude Code
-# never writes them to disk, so a statusline wrapper has to save them:
-# omacosy-claude-statusline does that. Nothing here calls an API, so the figures
-# are only as fresh as the last render: with no Claude Code session open they
-# stop moving, and the pill says so rather than reporting a stale percentage as
-# current.
-set -uo pipefail
+#!/usr/bin/env python3
+"""Claude usage for a bar pill, as the JSON a bar plugin can return.
 
-STATUS="${OMACOSY_CLAUDE_STATUS:-}"
-if [ -z "$STATUS" ]; then
-    # The oh-my-claudecode cache holds the same payload. Read whichever file is
-    # newer, so the pill keeps working before and after the wrapper is wired in.
-    for f in "$HOME/.config/omacosy/claude-status.json" \
-             "$HOME/.claude/hud/.omc/state/hud-stdin-cache.json"; do
-        [ -f "$f" ] || continue
-        if [ -z "$STATUS" ] || [ "$f" -nt "$STATUS" ]; then STATUS="$f"; fi
-    done
-fi
-[ -n "$STATUS" ] && [ -f "$STATUS" ] || { printf '{"label":""}\n'; exit 0; }
+Two sources, in order.
 
-python3 - "$STATUS" <<'PY'
-import json, sys, time
+The OAuth usage endpoint is the only place the per-model weekly windows and
+the extra usage credits appear, so it is preferred. It needs the Claude CLI's
+token and the network.
 
-try:
-    limits = (json.load(open(sys.argv[1])).get("rate_limits") or {})
-except (ValueError, OSError):
-    print('{"label":""}')
+The statusline payload is the fallback. Claude Code hands it to whatever
+statusline is configured and writes it nowhere, so omacosy-claude-statusline
+saves it. It needs no credential and no network, which is what makes it the
+right thing to fall back to.
+
+This never refreshes the token and never writes to the credential store. A
+third party rewriting the CLI's own credentials can race Claude Code and log
+you out. On an expired or rejected token it falls back instead.
+"""
+import json
+import os
+import subprocess
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime
+
+HOME = os.path.expanduser("~")
+CACHE = os.environ.get("OMACOSY_CLAUDE_USAGE_CACHE",
+                       os.path.join(HOME, ".config/omacosy/claude-usage-cache.json"))
+CAPTURES = [os.path.join(HOME, ".config/omacosy/claude-status.json"),
+            os.path.join(HOME, ".claude/hud/.omc/state/hud-stdin-cache.json")]
+KEYCHAIN_SERVICE = "Claude Code-credentials"
+CREDENTIALS_FILE = os.path.join(HOME, ".claude/.credentials.json")
+ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
+
+FRESH_S = 300          # re-ask the endpoint at most this often
+SERVE_STALE_S = 900    # keep serving a cached body this long past FRESH_S
+BACKOFF_S = 300        # after a failure, wait this long before trying again
+TIMEOUT_S = 5          # the pill must not hang on a slow network
+
+NOW = time.time()
+
+
+def out(payload):
+    print(json.dumps(payload))
     raise SystemExit
 
-now = time.time()
 
-def window(key):
-    w = limits.get(key) or {}
-    pct, resets = w.get("used_percentage"), w.get("resets_at")
-    # a reset time in the past means the window rolled over while no
-    # session was running, so the cached percentage describes a window
-    # that no longer exists
-    if pct is None or resets is None or resets <= now:
-        return None, None
-    return pct, resets
+def seconds_until(value):
+    """Accept either a unix timestamp or an ISO 8601 string."""
+    if isinstance(value, (int, float)):
+        return value - NOW
+    try:
+        return datetime.fromisoformat(value).timestamp() - NOW
+    except (TypeError, ValueError):
+        return None
 
-def countdown(resets):
-    left = int(resets - now)
-    h, m = divmod(left // 60, 60)
+
+def countdown(left):
+    h, m = divmod(int(left) // 60, 60)
     return "%dh %dm" % (h, m) if h else "%dm" % m
 
-five_pct, five_reset = window("five_hour")
-week_pct, week_reset = window("seven_day")
 
-if five_pct is None and week_pct is None:
-    print(json.dumps({"label": "--", "color": "muted", "rows": [
+def colour_for(pct):
+    return "green" if pct < 50 else "yellow" if pct < 80 else "red"
+
+
+# --- credential ------------------------------------------------------------
+# Read only. The token is passed straight to the request and is never written
+# to a file, a log, or this program's output.
+def access_token():
+    raw = None
+    try:
+        r = subprocess.run(["security", "find-generic-password",
+                            "-s", KEYCHAIN_SERVICE, "-w"],
+                           capture_output=True, text=True, timeout=TIMEOUT_S)
+        if r.returncode == 0:
+            raw = r.stdout
+    except (OSError, subprocess.SubprocessError):
+        pass
+    if raw is None and os.path.exists(CREDENTIALS_FILE):
+        try:
+            raw = open(CREDENTIALS_FILE).read()
+        except OSError:
+            return None
+    if raw is None:
+        return None
+    try:
+        oauth = json.loads(raw).get("claudeAiOauth") or {}
+    except ValueError:
+        return None
+    expires = oauth.get("expiresAt")
+    # expiresAt is in milliseconds; a dead token would only earn a 401
+    if isinstance(expires, (int, float)) and expires / 1000.0 <= NOW:
+        return None
+    return oauth.get("accessToken")
+
+
+# --- cache -----------------------------------------------------------------
+def read_cache():
+    try:
+        with open(CACHE) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def write_cache(entry):
+    try:
+        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+        tmp = CACHE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(entry, f)
+        os.replace(tmp, CACHE)
+    except OSError:
+        pass
+
+
+def fetch(token):
+    req = urllib.request.Request(ENDPOINT, headers={
+        "Authorization": "Bearer %s" % token,
+        "anthropic-beta": "oauth-2025-04-20",
+        "Content-Type": "application/json",
+    })
+    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+        return json.load(r)
+
+
+def usage_body():
+    entry = read_cache() or {}
+    age = NOW - entry.get("at", 0)
+    if entry.get("body") and age < FRESH_S:
+        return entry["body"]
+    if entry.get("failed_at") and NOW - entry["failed_at"] < BACKOFF_S:
+        return entry.get("body") if age < FRESH_S + SERVE_STALE_S else None
+    token = access_token()
+    if token:
+        try:
+            body = fetch(token)
+            write_cache({"at": NOW, "body": body})
+            return body
+        except (urllib.error.URLError, OSError, ValueError):
+            # keep the last good body so one bad request is not a blank pill
+            entry["failed_at"] = NOW
+            write_cache(entry)
+    if entry.get("body") and age < FRESH_S + SERVE_STALE_S:
+        return entry["body"]
+    return None
+
+
+# --- rendering -------------------------------------------------------------
+def window_rows(rows, title, pct, resets):
+    left = seconds_until(resets) if resets is not None else None
+    rows.append({"text": title, "detail": "%d%%" % round(pct)})
+    rows.append({"text": "", "slider": max(0.0, min(1.0, pct / 100.0))})
+    if left is not None and left > 0:
+        rows.append({"text": "Resets in " + countdown(left), "dim": True})
+
+
+def render_api(body):
+    five = body.get("five_hour") or {}
+    pct = five.get("utilization")
+    if pct is None:
+        return None
+    left = seconds_until(five.get("resets_at"))
+    rows = [{"text": "Claude usage", "hero": True}, {"separator": True}]
+    window_rows(rows, "Session, 5-hour", pct, five.get("resets_at"))
+
+    week = body.get("seven_day") or {}
+    if week.get("utilization") is not None:
+        rows.append({"separator": True})
+        window_rows(rows, "All models, weekly", week["utilization"], week.get("resets_at"))
+
+    # per-model weekly windows: the server names them, so a model added later
+    # appears without a change here
+    for limit in body.get("limits") or []:
+        scope = (limit.get("scope") or {}).get("model") or {}
+        name = scope.get("display_name")
+        if limit.get("kind") != "weekly_scoped" or not name:
+            continue
+        rows.append({"separator": True})
+        window_rows(rows, "%s, weekly" % name, limit.get("percent") or 0, limit.get("resets_at"))
+
+    spend = body.get("spend") or {}
+    used, cap = spend.get("used") or {}, spend.get("limit") or {}
+    if used and cap:
+        scale = 10 ** used.get("exponent", 2)
+        rows.append({"separator": True})
+        rows.append({"text": "Extra usage", "detail": "%d%%" % round(spend.get("percent") or 0)})
+        rows.append({"text": "%.2f of %.2f %s" % (used.get("amount_minor", 0) / scale,
+                                                  cap.get("amount_minor", 0) / scale,
+                                                  cap.get("currency", "")), "dim": True})
+
+    label = "%d%%" % round(pct)
+    if left is not None and left > 0:
+        label += " · " + countdown(left)
+    return {"label": label, "color": colour_for(pct), "rows": rows}
+
+
+def capture_body():
+    newest, stamp = None, -1
+    for path in CAPTURES:
+        try:
+            m = os.path.getmtime(path)
+        except OSError:
+            continue
+        if m > stamp:
+            newest, stamp = path, m
+    if newest is None:
+        return None
+    try:
+        return (json.load(open(newest)).get("rate_limits") or {})
+    except (OSError, ValueError):
+        return None
+
+
+def render_capture(limits):
+    def window(key):
+        w = limits.get(key) or {}
+        pct, resets = w.get("used_percentage"), w.get("resets_at")
+        left = seconds_until(resets) if resets is not None else None
+        # a reset time in the past describes a window that no longer exists
+        if pct is None or left is None or left <= 0:
+            return None, None
+        return pct, resets
+
+    five_pct, five_reset = window("five_hour")
+    week_pct, week_reset = window("seven_day")
+    if five_pct is None and week_pct is None:
+        return None
+
+    rows = [{"text": "Claude usage", "hero": True}, {"separator": True}]
+    if five_pct is not None:
+        window_rows(rows, "Session, 5-hour", five_pct, five_reset)
+        label, colour = "%d%% · %s" % (five_pct, countdown(seconds_until(five_reset))), colour_for(five_pct)
+    else:
+        label, colour = "--", "muted"
+        rows += [{"text": "Session, 5-hour", "detail": "--"},
+                 {"text": "Window ended since the last session", "dim": True}]
+    if week_pct is not None:
+        rows.append({"separator": True})
+        window_rows(rows, "All models, weekly", week_pct, week_reset)
+    return {"label": label, "color": colour, "rows": rows}
+
+
+body = usage_body()
+if body:
+    rendered = render_api(body)
+    if rendered:
+        out(rendered)
+
+limits = capture_body()
+if limits:
+    rendered = render_capture(limits)
+    if rendered:
+        out(rendered)
+    out({"label": "--", "color": "muted", "rows": [
         {"text": "Claude usage", "hero": True},
         {"text": "No current window", "dim": True},
-        {"text": "Open a Claude Code session to refresh", "dim": True},
-    ]}))
-    raise SystemExit
+        {"text": "Open a Claude Code session to refresh", "dim": True}]})
 
-rows = [{"text": "Claude usage", "hero": True}, {"separator": True}]
-
-# the windows are reported independently: the five-hour one ends overnight
-# while the weekly one is still days from resetting, and a five-hour figure
-# that describes a dead window is no reason to hide a good weekly one
-if five_pct is not None:
-    label = "%d%% \u00b7 %s" % (five_pct, countdown(five_reset))
-    color = "green" if five_pct < 50 else "yellow" if five_pct < 80 else "red"
-    # a slider row's text is a right-aligned readout in a narrow gutter,
-    # not a label: anything long draws over the track
-    rows += [{"text": "Session, 5-hour", "detail": "%d%%" % five_pct},
-             {"text": "", "slider": five_pct / 100.0},
-             {"text": "Resets in " + countdown(five_reset), "dim": True}]
-else:
-    label, color = "--", "muted"
-    rows += [{"text": "Session, 5-hour", "detail": "--"},
-             {"text": "Window ended since the last session", "dim": True}]
-
-if week_pct is not None:
-    rows += [{"separator": True},
-             {"text": "All models, weekly", "detail": "%d%%" % week_pct},
-             {"text": "", "slider": week_pct / 100.0},
-             {"text": "Resets in " + countdown(week_reset), "dim": True}]
-
-print(json.dumps({"label": label, "color": color, "rows": rows}))
-PY
+out({"label": ""})
