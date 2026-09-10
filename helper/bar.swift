@@ -805,6 +805,55 @@ func updateClock() {
 }
 
 // --- battery (IOPS publishes, capacity ticks included)
+// IOPS carries the charge and the time; health, cycles and the live draw
+// only exist in the registry entry.
+func smartBattery() -> [String: Any] {
+    let service = IOServiceGetMatchingService(kIOMainPortDefault,
+                                              IOServiceMatching("AppleSmartBattery"))
+    guard service != 0 else { return [:] }
+    defer { IOObjectRelease(service) }
+    var props: Unmanaged<CFMutableDictionary>?
+    guard IORegistryEntryCreateCFProperties(service, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+          let dict = props?.takeRetainedValue() as? [String: Any]
+    else { return [:] }
+    return dict
+}
+
+// High power mode has no public API, and pmset costs about 13 ms. That is
+// fine on a notification and would not be on a timer, so it is cached.
+var highPowerMode = false
+
+func readHighPowerMode() -> Bool {
+    shell("/usr/bin/pmset", ["-g"])
+        .split(separator: "\n")
+        .first { $0.contains("powermode") }?
+        .split(separator: " ").last == "2"
+}
+
+// Only LOW power mode publishes a change, so leaving high power for
+// automatic is a silent transition. The minute tick catches it; the
+// notification just makes the low-power case immediate.
+// Never assign highPowerMode directly. The icon is only redrawn when this
+// notices a change, so a silent write leaves the pill stale for good: the
+// popup used to set it, and the next tick then saw nothing to do.
+func applyHighPowerMode(_ high: Bool) {
+    guard high != highPowerMode else { return }
+    highPowerMode = high
+    updateBattery()
+}
+
+func refreshPowerMode() {
+    DispatchQueue.global(qos: .utility).async {
+        let high = readHighPowerMode()
+        DispatchQueue.main.async { applyHighPowerMode(high) }
+    }
+}
+
+func powerModeName() -> String? {
+    if ProcessInfo.processInfo.isLowPowerModeEnabled { return "low power" }
+    return highPowerMode ? "high power" : nil
+}
+
 func updateBattery() {
     guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
           let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef]
@@ -825,7 +874,11 @@ func updateBattery() {
         default: break
         }
         if charging { icon = "󰂄"; color = palette.green }
-        set("battery") { $0.icon = icon; $0.iconColor = color; $0.label = "\(pct)%" }
+        // a leaf or a speedometer beside the cell, so the mode is visible
+        // without opening anything
+        let mode = ProcessInfo.processInfo.isLowPowerModeEnabled ? "\u{F032A}"
+            : (highPowerMode ? "\u{F04C5}" : "")
+        set("battery") { $0.icon = icon + mode; $0.iconColor = color; $0.label = "\(pct)%" }
         return
     }
 }
@@ -1837,6 +1890,84 @@ func securityName(_ s: CWSecurity) -> String? {
     }
 }
 
+func batteryRows() -> [PopupRow] {
+    var rows: [PopupRow] = []
+    let raw = smartBattery()
+    let data = raw["BatteryData"] as? [String: Any] ?? [:]
+
+    if let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+       let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef],
+       let source = list.first,
+       let d = IOPSGetPowerSourceDescription(blob, source)?.takeUnretainedValue() as? [String: Any] {
+        let cur = d[kIOPSCurrentCapacityKey] as? Int ?? 0
+        let max = d[kIOPSMaxCapacityKey] as? Int ?? 100
+        let pct = max > 0 ? Int((Double(cur) / Double(max) * 100).rounded()) : cur
+        let onAC = (d[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
+        // this key arrives as a number, not a boolean, so a Bool cast alone
+        // reads every charging battery as charged
+        let charging = (d[kIOPSIsChargingKey] as? Bool)
+            ?? ((d[kIOPSIsChargingKey] as? Int) == 1)
+        rows.append(PopupRow(text: "battery", detail: "\(pct)%", hero: true))
+        rows.append(PopupRow(text: "", slider: Double(pct) / 100))
+        let state = charging ? "charging" : (onAC ? "charged, on AC" : "on battery")
+        rows.append(PopupRow(text: state, dim: true))
+
+        // 65535 is the "not known yet" answer, which arrives whenever the
+        // rate has just changed
+        let minutes = onAC ? (d[kIOPSTimeToFullChargeKey] as? Int ?? -1)
+                           : (d[kIOPSTimeToEmptyKey] as? Int ?? -1)
+        if minutes > 0, minutes < 65535 {
+            rows.append(PopupRow(text: onAC ? "time to full" : "time left",
+                                 detail: "\(minutes / 60)h \(minutes % 60)m"))
+        }
+    }
+
+    rows.append(PopupRow(separator: true))
+    applyHighPowerMode(readHighPowerMode())
+    if let mode = powerModeName() {
+        rows.append(PopupRow(text: "mode", detail: mode))
+    }
+    switch ProcessInfo.processInfo.thermalState {
+    case .nominal: break // the ordinary state is not worth a row
+    case .fair: rows.append(PopupRow(text: "thermal", detail: "fair"))
+    case .serious: rows.append(PopupRow(text: "thermal", detail: "serious"))
+    case .critical: rows.append(PopupRow(text: "thermal", detail: "critical"))
+    @unknown default: break
+    }
+    // amperage is negative while discharging: the sign is the direction,
+    // and the pill only wants the size
+    if let mv = raw["Voltage"] as? Int, let ma = raw["Amperage"] as? Int, ma != 0 {
+        let watts = Double(mv) * Double(abs(ma)) / 1_000_000
+        rows.append(PopupRow(text: ma < 0 ? "draw" : "charging at",
+                             detail: String(format: "%.1f W", watts)))
+    }
+    if let adapter = raw["AdapterDetails"] as? [String: Any],
+       let watts = adapter["Watts"] as? Int {
+        rows.append(PopupRow(text: "adapter", detail: "\(watts) W"))
+    }
+
+    rows.append(PopupRow(separator: true))
+    if let design = data["DesignCapacity"] as? Int,
+       let full = data["FullChargeCapacity"] as? Int, design > 0 {
+        // Apple rounds this to a whole 100% for a long while; the ratio is
+        // the number that actually moves
+        let health = Int((Double(full) / Double(design) * 100).rounded())
+        let verdict = health >= 90 ? "good" : (health >= 80 ? "fair" : "worn")
+        rows.append(PopupRow(text: "health", detail: "\(health)%  \(verdict)"))
+    }
+    if let cycles = raw["CycleCount"] as? Int {
+        rows.append(PopupRow(text: "cycles", detail: "\(cycles)"))
+    }
+
+    rows.append(PopupRow(separator: true))
+    rows.append(PopupRow(text: "Battery Settings…", dim: true, action: {
+        NSWorkspace.shared.open(
+            URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")!)
+        closePopup()
+    }))
+    return rows
+}
+
 func wifiRows() -> [PopupRow] {
     let interface = CWWiFiClient.shared().interface()
     var rows: [PopupRow] = [
@@ -1961,6 +2092,7 @@ func popupRows(for name: String) -> [PopupRow] {
     switch name {
     case "apple": return appleMenuRows()
     case "clock": return calendarRows()
+    case "battery": return batteryRows()
     case "weather": return weatherRows()
     case "brightness": return brightnessRows()
     case "volume": return volumeRows()
@@ -2986,9 +3118,6 @@ final class BarView: NSView {
         }
         closePopup()
         switch name {
-        case "battery":
-            NSWorkspace.shared.open(
-                URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension")!)
         case "activity":
             DispatchQueue.global(qos: .userInitiated).async {
                 _ = shell("/usr/bin/open", ["-na", terminalApp, "--args", "--title=omacosy-activity", "--command=\(btopBin)"])
@@ -3868,6 +3997,7 @@ for event in [NSWorkspace.didLaunchApplicationNotification,
 // shows a stale minute.
 func scheduleClock() {
     updateClock()
+    refreshPowerMode()
     let now = Date()
     let nextMinute = Calendar.current.nextDate(after: now, matching: DateComponents(second: 0),
                                                matchingPolicy: .nextTime) ?? now.addingTimeInterval(60)
@@ -3898,6 +4028,15 @@ apply(fetchSnapshot()) // blocking is fine here: the run loop has not started
 rightItems["activity"] = BarItem(icon: "󰍛", iconColor: palette.accent)
 applyShade() // restore the level this machine was left at
 updateBattery()
+// low power mode publishes a change; high power mode does not, so it is
+// re-read on the same signal rather than on a timer
+for name in [NSNotification.Name.NSProcessInfoPowerStateDidChange,
+             ProcessInfo.thermalStateDidChangeNotification] {
+    NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+        refreshPowerMode()
+    }
+}
+refreshPowerMode()
 updateBrightness()
 updateWifi()
 if rightOrder.contains("weather") { updateWeather() }

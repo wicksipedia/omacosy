@@ -399,8 +399,16 @@ startup and does no config-file or image-file I/O while it draws.
   sleep/wake and it reaches external displays, which have no backlight
   API. Gamma is reset when the setting process exits, so a crash or an
   uninstall restores the screen by itself.
-- **Battery** / **Clock** (calendar popup) / **Activity** (floating
-  btop).
+- **Battery**: charge and state, live draw in watts, the adapter's
+  wattage, time to full or empty when the rate is settled, and health as
+  the ratio of full charge to design capacity, which keeps moving after
+  Apple's own figure has rounded to 100%. A leaf or a speedometer joins
+  the cell in low or high power mode, and a thermal row appears once the
+  system reports anything above nominal. Low power mode publishes a
+  change, so it is immediate. High power mode publishes nothing, not even
+  when you leave it, so it is re-read on the minute tick and again
+  whenever the popup opens.
+- **Clock** (calendar popup) / **Activity** (floating btop).
 - **Floats**: appears only while the workspace holds floating windows;
   click surfaces the next one.
 
