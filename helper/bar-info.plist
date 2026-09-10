@@ -12,6 +12,8 @@
   <key>CFBundleExecutable</key><string>omacosy-bar</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSUIElement</key><true/>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>omacosy-bar sends commands to Music for the media pill, and asks Ghostty to reload its colours after a theme change.</string>
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>omacosy-bar shows how many bluetooth devices are connected in the status bar.</string>
   <key>NSLocationWhenInUseUsageDescription</key>

@@ -622,24 +622,24 @@ struct BarItem: Equatable {
 // screen order, left to right
 let rightOrderAll = ["weather", "wifi", "bluetooth", "brightness", "mic", "volume", "battery", "clock", "activity"]
 
-// `<pill> = hide` or `<pill> = icon` per line in
-// ~/.config/omacosy/bar-pills.conf, same shape as workspace-icons.conf.
-// Read once at startup.
-let pillModes: [String: String] = {
+// `<key> = <value>` lines in ~/.config/omacosy/<name>
+func readConf(_ name: String) -> [String: String] {
     let file = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".config/omacosy/bar-pills.conf")
+        .appendingPathComponent(".config/omacosy/\(name)")
     guard let text = try? String(contentsOf: file, encoding: .utf8) else { return [:] }
-    var modes: [String: String] = [:]
+    var pairs: [String: String] = [:]
     for raw in text.split(separator: "\n") {
         let line = raw.trimmingCharacters(in: .whitespaces)
         guard !line.isEmpty, !line.hasPrefix("#"),
               let eq = line.firstIndex(of: "=") else { continue }
-        let name = line[..<eq].trimmingCharacters(in: .whitespaces)
-        let mode = line[line.index(after: eq)...].trimmingCharacters(in: .whitespaces)
-        modes[name] = mode
+        pairs[line[..<eq].trimmingCharacters(in: .whitespaces)] =
+            line[line.index(after: eq)...].trimmingCharacters(in: .whitespaces)
     }
-    return modes
-}()
+    return pairs
+}
+
+// `<pill> = hide` or `<pill> = icon` per line. Read once at startup.
+let pillModes = readConf("bar-pills.conf")
 
 // A pill defined in ~/.config/omacosy/bar-plugins.conf: an INI section
 // per pill, with a shell command whose stdout becomes the label. This is
@@ -3828,6 +3828,24 @@ watch(FileManager.default.homeDirectoryForCurrentUser
     let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
     tlog(String(format: "theme %.2f ms", ms))
 }
+
+// Follow the macOS light/dark switch. appearance.conf names a theme for
+// each mode; without the file, themes stay manual.
+var appearanceTheme: String?   // the last theme applied, so a repeated change notice runs theme-set once
+func followAppearance() {
+    let dark = app.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    guard let want = readConf("appearance.conf")[dark ? "dark" : "light"],
+          want != appearanceTheme else { return }
+    appearanceTheme = want
+    let current = try? FileManager.default.destinationOfSymbolicLink(
+        atPath: NSHomeDirectory() + "/.config/omarchy/current/theme")
+    if let current, (current as NSString).lastPathComponent == want { return }
+    DispatchQueue.global(qos: .utility).async {
+        _ = shell(NSHomeDirectory() + "/.local/bin/theme-set", [want])
+    }
+}
+followAppearance()
+let appearanceWatch = app.observe(\.effectiveAppearance) { _, _ in followAppearance() }
 
 // --- popup guard -----------------------------------------------------------
 // popup_guard.sh polls the cursor on a loop and greps item names to decide

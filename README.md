@@ -535,6 +535,24 @@ herdr's `terminal` theme. Prefer a real match where one exists. `terminal`
 takes the host palette, but reads its text colour from the ANSI white
 slot, so on a light theme the sidebar turns pale grey.
 
+### Light and dark
+
+To follow the macOS appearance, name a theme for each mode in
+`~/.config/omacosy/appearance.conf`:
+
+```
+light = catppuccin-latte
+dark = catppuccin
+```
+
+The bar runs `theme-set` when the appearance changes, and once when it
+starts. Without the file, themes change only when you run `theme-set`. A
+theme you pick by hand stays until the next appearance change or the next
+bar start.
+
+On the first switch, macOS asks whether omacosy-bar can control Ghostty.
+If you do not allow it, the terminal keeps its old colours.
+
 ## Tiling: dwindle
 
 ![Three terminals in a dwindle layout — README, git log and btop — accent border ring on the focused one](docs/screenshots/tiling.jpg)
