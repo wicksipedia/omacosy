@@ -3829,19 +3829,18 @@ watch(FileManager.default.homeDirectoryForCurrentUser
     tlog(String(format: "theme %.2f ms", ms))
 }
 
-// Follow the macOS light/dark switch. appearance.conf names a theme for
-// each mode; without the file, themes stay manual.
-var appearanceTheme: String?   // the last theme applied, so a repeated change notice runs theme-set once
+// Follow the macOS light/dark switch when theme.conf holds a Ghostty-style
+// pair, `theme = light:<name>,dark:<name>`. theme-set picks the half.
+var appearanceDark: Bool?   // the appearance last handled, so a repeated change notice runs theme-set once
 func followAppearance() {
     let dark = app.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    guard let want = readConf("appearance.conf")[dark ? "dark" : "light"],
-          want != appearanceTheme else { return }
-    appearanceTheme = want
-    let current = try? FileManager.default.destinationOfSymbolicLink(
-        atPath: NSHomeDirectory() + "/.config/omarchy/current/theme")
-    if let current, (current as NSString).lastPathComponent == want { return }
+    guard dark != appearanceDark, let spec = readConf("theme.conf")["theme"],
+          spec.contains(":") else { return }
+    appearanceDark = dark
+    var env = ProcessInfo.processInfo.environment
+    env["OMACOSY_APPEARANCE"] = dark ? "dark" : "light"
     DispatchQueue.global(qos: .utility).async {
-        _ = shell(NSHomeDirectory() + "/.local/bin/theme-set", [want])
+        _ = shell(NSHomeDirectory() + "/.local/bin/theme-set", [spec], env: env)
     }
 }
 followAppearance()

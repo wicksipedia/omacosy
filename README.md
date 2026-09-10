@@ -537,18 +537,19 @@ slot, so on a light theme the sidebar turns pale grey.
 
 ### Light and dark
 
-To follow the macOS appearance, name a theme for each mode in
-`~/.config/omacosy/appearance.conf`:
+`theme-set` also takes a light/dark pair, in the same syntax as Ghostty's
+`theme` key:
 
 ```
-light = catppuccin-latte
-dark = catppuccin
+theme-set light:catppuccin-latte,dark:catppuccin
 ```
 
-The bar runs `theme-set` when the appearance changes, and once when it
-starts. Without the file, themes change only when you run `theme-set`. A
-theme you pick by hand stays until the next appearance change or the next
-bar start.
+With a pair, the theme follows the macOS appearance. The bar runs
+`theme-set` with the pair again when the appearance changes, and once when
+it starts. `theme-set` with one name, or `Super+Shift+T`, pins that theme
+until you set a pair again. `~/.config/omacosy/theme.conf` holds the
+current setting. Under OmniWM, a pair sets `[appearance] mode` to
+`automatic`.
 
 On the first switch, macOS asks whether omacosy-bar can control Ghostty.
 If you do not allow it, the terminal keeps its old colours.

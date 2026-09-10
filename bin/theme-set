@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# theme-set <name> — switch the whole desktop theme in one move.
+# theme-set <name> | light:<name>,dark:<name> — switch the whole desktop
+# theme in one move.
 # Swaps ~/.config/omarchy/current/theme (the omarchy convention), then
 # nudges every consumer: Korren live-reloads on its own (it watches the
 # omarchy dir), the bar and borders both watch the theme and restyle
@@ -18,14 +19,25 @@ case "${1:-list}" in
     ;;
 esac
 
-NAME="$1"
-if [ ! -d "$THEMES_DIR/$NAME" ]; then
+SPEC="$1"
+NAME="$SPEC"
+# A Ghostty-style pair, light:<name>,dark:<name>, follows the macOS
+# appearance: the bar runs theme-set with the pair again when it changes.
+# One name pins that theme.
+if [[ "$SPEC" == *:* ]]; then
+  MODE="${OMACOSY_APPEARANCE:-$(defaults read -g AppleInterfaceStyle 2>/dev/null || true)}"
+  case "$MODE" in [Dd]ark) MODE=dark ;; *) MODE=light ;; esac
+  NAME="$(tr ',' '\n' <<<"$SPEC" | sed -n "s/^ *$MODE: *//p" | head -1)"
+fi
+if [ -z "$NAME" ] || [ ! -d "$THEMES_DIR/$NAME" ]; then
   echo "theme-set: unknown theme '$NAME'. Available:" >&2
   for t in "$THEMES_DIR"/*/; do basename "$t"; done >&2
   exit 1
 fi
 
-mkdir -p "$CURRENT_DIR"
+mkdir -p "$CURRENT_DIR" "$HOME/.config/omacosy"
+printf 'theme = %s\n' "$SPEC" > "$HOME/.config/omacosy/theme.conf"
+PREV="$(readlink "$CURRENT_DIR/theme" 2>/dev/null || true)"
 ln -sfn "$THEMES_DIR/$NAME" "$CURRENT_DIR/theme"
 
 # Korren: prefer its hand-tuned built-in theme when one matches; fall
@@ -45,9 +57,10 @@ fi
 # half-broke on macOS 14+: some desktops return "missing value" and
 # silently keep the old picture); osascript remains as fallback.
 WALL="$(ls "$THEMES_DIR/$NAME"/backgrounds/* 2>/dev/null | head -1)"
-if [ -n "$WALL" ]; then
+if [ -n "$WALL" ] && [ "${PREV##*/}" != "$NAME" ]; then
   # theme-bg-next cycles through the rest; a theme switch restarts the
-  # cycle at the first image, so the remembered position moves with it
+  # cycle at the first image, so the remembered position moves with it.
+  # The same theme again, as the bar applies it at startup, keeps it.
   mkdir -p "$HOME/.local/state/omacosy"
   ln -nsf "$WALL" "$HOME/.local/state/omacosy/background"
   if [ -x "$HOME/.local/bin/omacosy-helper" ]; then
@@ -96,15 +109,18 @@ fi
 # OmniWM tints its own chrome (overview, command palette) from
 # [appearance] mode, which no theme file carries. Derive it from the
 # palette's background luminance so every theme, present and future, gets
-# it right without a new convention to remember.
+# it right without a new convention to remember. A light/dark pair
+# writes "automatic" instead: OmniWM can follow the system itself.
 if [ -f "$OMNIWM_SETTINGS" ] && [ -f "$THEMES_DIR/$NAME/colors.toml" ]; then
-  python3 - "$OMNIWM_SETTINGS" "$THEMES_DIR/$NAME/colors.toml" <<'PY'
+  python3 - "$OMNIWM_SETTINGS" "$THEMES_DIR/$NAME/colors.toml" "$SPEC" <<'PY'
 import re, sys
-settings, colors = sys.argv[1], sys.argv[2]
+settings, colors, spec = sys.argv[1], sys.argv[2], sys.argv[3]
 m = re.search(r'^background = "#([0-9a-fA-F]{6})"', open(colors).read(), re.M)
 if m:
     r, g, b = (int(m.group(1)[i:i+2], 16) / 255 for i in (0, 2, 4))
     mode = "light" if 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5 else "dark"
+    if ":" in spec:
+        mode = "automatic"
     t = open(settings).read()
     t2 = re.sub(r'(\[appearance\]\nmode = )"[a-z]+"', r'\1"%s"' % mode, t, count=1)
     if t2 != t:
