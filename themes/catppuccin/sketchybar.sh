@@ -2,7 +2,7 @@
 # Catppuccin Mocha — sketchybar palette (0xAARRGGBB)
 export BAR_COLOR=0xe61e1e2e
 export BAR_BG_SOLID=0xff1e1e2e
-export ITEM_BG=0xff313244
+export ITEM_BG=0x00313244
 # the filled row and slider track inside a popup
 export ROW_BG=0xff313244
 export ACCENT=0xffcba6f7
