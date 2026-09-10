@@ -276,6 +276,8 @@ pill's colour and give it a popup:
 
 `color` is one of `accent`, `label`, `muted`, `red`, `green` or `yellow`,
 resolved from the current theme, and tints both the icon and the label. A
+row takes the same `color` names, and a row with an `https` `url` opens it
+when clicked. A
 colour emoji draws its own colours and ignores the icon tint, which is why
 the label carries it too. `icon` overrides the config. A `slider` between 0
 and 1 draws a progress track, and on a slider row `text` is a short
@@ -286,6 +288,9 @@ re-running the command.
 `omacosy-claude-usage` ships as an example. It colours the pill by how far
 into the five-hour window you are, and opens a popup with that window, the
 weekly one, each per-model weekly window, and any extra usage credits.
+
+The first row reports Claude's service status from status.claude.com and
+opens the status page when clicked.
 
 It reads Anthropic's OAuth usage endpoint with the Claude CLI's own token,
 caching the answer for five minutes, because only that endpoint carries the

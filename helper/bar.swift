@@ -727,13 +727,23 @@ func pluginColor(_ name: String?) -> NSColor? {
 }
 
 func pluginPopupRows(_ raw: [[String: Any]]) -> [PopupRow] {
-    raw.map {
-        PopupRow(text: $0["text"] as? String ?? "",
-                 detail: $0["detail"] as? String ?? "",
-                 separator: $0["separator"] as? Bool ?? false,
-                 hero: $0["hero"] as? Bool ?? false,
-                 dim: $0["dim"] as? Bool ?? false,
-                 slider: $0["slider"] as? Double)
+    raw.map { spec in
+        // a row's "url" becomes the action a click performs: JSON cannot
+        // carry a closure, and opening a link is the only action a plugin
+        // popup needs so far
+        var action: (() -> Void)?
+        if let link = spec["url"] as? String, let url = URL(string: link),
+           url.scheme == "https" {
+            action = { NSWorkspace.shared.open(url) }
+        }
+        return PopupRow(text: spec["text"] as? String ?? "",
+                        detail: spec["detail"] as? String ?? "",
+                        separator: spec["separator"] as? Bool ?? false,
+                        hero: spec["hero"] as? Bool ?? false,
+                        dim: spec["dim"] as? Bool ?? false,
+                        slider: spec["slider"] as? Double,
+                        action: action,
+                        tint: pluginColor(spec["color"] as? String))
     }
 }
 
@@ -745,6 +755,9 @@ func runPlugin(_ plugin: BarPlugin) {
         var env = ProcessInfo.processInfo.environment
         env["PATH"] = "\(NSHomeDirectory())/.local/bin:/opt/homebrew/bin:/usr/local/bin:"
             + (env["PATH"] ?? "/usr/bin:/bin")
+        // the configured icon, so a command can decorate it rather than
+        // having to hardcode the glyph its own config already names
+        env["OMACOSY_PILL_ICON"] = plugin.icon
         let out = shell("/bin/sh", ["-c", plugin.command], env: env)
         // A command may answer with a JSON object to set a colour and
         // popup rows. Anything else is a plain label, which stays the
@@ -1374,6 +1387,7 @@ struct PopupRow {
     // fixed-width cells, calendar only — the font isn't monospaced, so
     // space-padded text drifts out of the header's columns
     var columns: [String]? = nil
+    var tint: NSColor? // overrides the hero/dim colour for one row
 }
 
 let rowHeight: CGFloat = 26
@@ -1403,7 +1417,7 @@ final class PopupView: NSView {
         // the dim footer is the label colour at 60%, the same relationship
         // the shell popups build with a 0x99 alpha prefix
         if row.dim { return palette.label.withAlphaComponent(0.6) }
-        return palette.label
+        return row.tint ?? palette.label
     }
 
     // separators are hairlines, not rows: a full 26 pt of blank per

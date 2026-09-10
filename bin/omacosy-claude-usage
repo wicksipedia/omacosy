@@ -32,6 +32,8 @@ CAPTURES = [os.path.join(HOME, ".config/omacosy/claude-status.json"),
 KEYCHAIN_SERVICE = "Claude Code-credentials"
 CREDENTIALS_FILE = os.path.join(HOME, ".claude/.credentials.json")
 ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
+STATUS_PAGE = "https://status.claude.com"
+STATUS_ENDPOINT = STATUS_PAGE + "/api/v2/status.json"
 
 FRESH_S = 300          # re-ask the endpoint at most this often
 SERVE_STALE_S = 900    # keep serving a cached body this long past FRESH_S
@@ -116,18 +118,21 @@ def write_cache(entry):
         pass
 
 
-def fetch(token):
-    req = urllib.request.Request(ENDPOINT, headers={
-        "Authorization": "Bearer %s" % token,
-        "anthropic-beta": "oauth-2025-04-20",
-        "Content-Type": "application/json",
-    })
+def get_json(url, headers=None):
+    req = urllib.request.Request(url, headers=headers or {})
     with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
         return json.load(r)
 
 
-def usage_body():
-    entry = read_cache() or {}
+def fetch(token):
+    return get_json(ENDPOINT, {
+        "Authorization": "Bearer %s" % token,
+        "anthropic-beta": "oauth-2025-04-20",
+        "Content-Type": "application/json",
+    })
+
+
+def usage_body(entry):
     age = NOW - entry.get("at", 0)
     if entry.get("body") and age < FRESH_S:
         return entry["body"]
@@ -137,7 +142,9 @@ def usage_body():
     if token:
         try:
             body = fetch(token)
-            write_cache({"at": NOW, "body": body})
+            entry.update({"at": NOW, "body": body})
+            entry.pop("failed_at", None)
+            write_cache(entry)
             return body
         except (urllib.error.URLError, OSError, ValueError):
             # keep the last good body so one bad request is not a blank pill
@@ -146,6 +153,34 @@ def usage_body():
     if entry.get("body") and age < FRESH_S + SERVE_STALE_S:
         return entry["body"]
     return None
+
+
+def health_row(entry):
+    age = NOW - entry.get("health_at", 0)
+    status = entry.get("health")
+    if status is None or age >= FRESH_S:
+        try:
+            status = (get_json(STATUS_ENDPOINT).get("status") or {})
+            entry["health"], entry["health_at"] = status, NOW
+            write_cache(entry)
+        except (urllib.error.URLError, OSError, ValueError):
+            if status is None:
+                return None
+    text = status.get("description")
+    if not text:
+        return None
+    indicator = status.get("indicator")
+    colour = {"none": "green", "minor": "yellow"}.get(indicator, "red")
+    return {"text": text, "detail": "status", "color": colour, "url": STATUS_PAGE}
+
+
+def health_icon(status):
+    """Decorate the configured icon when the service is not healthy."""
+    base = os.environ.get("OMACOSY_PILL_ICON", "")
+    if not status:
+        return None
+    mark = {"none": "", "minor": "\U0001F3E5"}.get(status.get("indicator"), "\U0001FAA6")
+    return base + mark if mark else None
 
 
 # --- rendering -------------------------------------------------------------
@@ -243,20 +278,34 @@ def render_capture(limits):
     return {"label": label, "color": colour, "rows": rows}
 
 
-body = usage_body()
+entry = read_cache() or {}
+health = health_row(entry)
+icon = health_icon(entry.get("health"))
+
+
+def with_health(payload):
+    if health:
+        payload["rows"] = payload["rows"][:1] + [health, {"separator": True}] + payload["rows"][2:]
+    if icon:
+        payload["icon"] = icon
+    return payload
+
+
+body = usage_body(entry)
 if body:
     rendered = render_api(body)
     if rendered:
-        out(rendered)
+        out(with_health(rendered))
 
 limits = capture_body()
 if limits:
     rendered = render_capture(limits)
     if rendered:
-        out(rendered)
-    out({"label": "--", "color": "muted", "rows": [
-        {"text": "Claude usage", "hero": True},
-        {"text": "No current window", "dim": True},
-        {"text": "Open a Claude Code session to refresh", "dim": True}]})
+        out(with_health(rendered))
 
-out({"label": ""})
+out(with_health({"label": "--", "color": "muted", "rows": [
+    {"text": "Claude usage", "hero": True},
+    {"separator": True},
+    {"text": "No current window", "dim": True},
+    {"text": "Open a Claude Code session to refresh", "dim": True}]})
+    if health else {"label": ""})
