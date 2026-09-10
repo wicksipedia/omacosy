@@ -4,3 +4,4 @@
 /omacosy-gesture.app/
 config/apps.local.conf
 config/aerospace/aerospace.toml
+__pycache__/
