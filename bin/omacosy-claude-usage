@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 # Claude usage for a bar pill, as the JSON a bar plugin can return.
 #
-# The numbers are the ones Claude Code hands its own statusline, which
-# oh-my-claudecode caches on every render. Nothing here calls an API, so
-# the figures are only as fresh as the last render: with no Claude Code
-# session open they stop moving, and the pill says so rather than
-# reporting a stale percentage as current.
+# The numbers are the ones Claude Code hands its own statusline. Claude Code
+# never writes them to disk, so a statusline wrapper has to save them:
+# omacosy-claude-statusline does that. Nothing here calls an API, so the figures
+# are only as fresh as the last render: with no Claude Code session open they
+# stop moving, and the pill says so rather than reporting a stale percentage as
+# current.
 set -uo pipefail
 
-CACHE="${OMC_HUD_CACHE:-$HOME/.claude/hud/.omc/state/hud-stdin-cache.json}"
-[ -f "$CACHE" ] || { printf '{"label":""}\n'; exit 0; }
+STATUS="${OMACOSY_CLAUDE_STATUS:-}"
+if [ -z "$STATUS" ]; then
+    # The oh-my-claudecode cache holds the same payload. Read whichever file is
+    # newer, so the pill keeps working before and after the wrapper is wired in.
+    for f in "$HOME/.config/omacosy/claude-status.json" \
+             "$HOME/.claude/hud/.omc/state/hud-stdin-cache.json"; do
+        [ -f "$f" ] || continue
+        if [ -z "$STATUS" ] || [ "$f" -nt "$STATUS" ]; then STATUS="$f"; fi
+    done
+fi
+[ -n "$STATUS" ] && [ -f "$STATUS" ] || { printf '{"label":""}\n'; exit 0; }
 
-python3 - "$CACHE" <<'PY'
+python3 - "$STATUS" <<'PY'
 import json, sys, time
 
 try:
