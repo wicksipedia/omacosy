@@ -137,17 +137,14 @@ case "ghostty-reload":
         r.setDescriptor(container, forKeyword: AEKeyword(keyAEContainer))
         return r.coerce(toDescriptorType: DescType(typeObjectSpecifier)) ?? r
     }
-    // "terminal 1 of front window": the action reloads the whole config but
-    // still wants a surface to act on
-    let frontWindow = specifier(want: code("prop"), form: code("prop"),
-                                data: NSAppleEventDescriptor(typeCode: code("GFWn")),
-                                container: NSAppleEventDescriptor.null())
+    // "terminal 1" of the application, not of its front window: an
+    // instance whose windows hold no terminal fails the front-window form.
+    // The action reloads the whole config but still wants a surface.
     let terminal = specifier(want: code("Gtrm"), form: code("indx"),
-                             data: NSAppleEventDescriptor(int32: 1), container: frontWindow)
+                             data: NSAppleEventDescriptor(int32: 1), container: NSAppleEventDescriptor.null())
 
-    var reloaded = 0
-    let running = NSRunningApplication.runningApplications(withBundleIdentifier: "com.mitchellh.ghostty")
-    for app in running {
+    var reloaded = 0, targets = 0
+    for app in NSRunningApplication.runningApplications(withBundleIdentifier: "com.mitchellh.ghostty") {
         let event = NSAppleEventDescriptor(
             eventClass: code("Ghst"), eventID: code("PfAc"),
             targetDescriptor: NSAppleEventDescriptor(processIdentifier: app.processIdentifier),
@@ -155,11 +152,19 @@ case "ghostty-reload":
             transactionID: AETransactionID(kAnyTransactionID))
         event.setDescriptor(NSAppleEventDescriptor(string: "reload_config"), forKeyword: AEKeyword(keyDirectObject))
         event.setDescriptor(terminal, forKeyword: AEKeyword(code("GonT")))
-        // an instance with no window answers with an error, which is not a
-        // failure worth reporting: it has nothing to repaint
-        if (try? event.sendEvent(options: [.waitForReply], timeout: 2)) != nil { reloaded += 1 }
+        // A handler error comes back inside the reply, not as a throw.
+        let err: Int32
+        do {
+            let reply = try event.sendEvent(options: [.waitForReply], timeout: 2)
+            err = reply.paramDescriptor(forKeyword: keyErrorNumber)?.int32Value ?? 0
+        } catch { err = Int32((error as NSError).code) }
+        // no terminal in this instance, so nothing to repaint
+        if err == Int32(errAENoSuchObject) { continue }
+        targets += 1
+        if err == 0 { reloaded += 1 }
+        else { FileHandle.standardError.write("ghostty-reload: pid \(app.processIdentifier) failed (\(err))\n".data(using: .utf8)!) }
     }
-    print("\(reloaded)/\(running.count)")
+    print("\(reloaded)/\(targets)")
 
 case "displays":
     // arrangement-ordered (left to right, matching AeroSpace/sketchybar

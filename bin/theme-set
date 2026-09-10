@@ -141,7 +141,7 @@ for key, ghostty in (("background", "background"), ("foreground", "foreground"),
         lines.append("%s = %s" % (ghostty, v))
 open(out, "w").write("\n".join(lines) + "\n")
 PY
-  "$HOME/.local/bin/omacosy-helper" ghostty-reload >/dev/null 2>&1 || true
+  "$HOME/.local/bin/omacosy-helper" ghostty-reload >/dev/null || true
 fi
 
 # herdr ships its own themes. Ask it whether it has one under this
