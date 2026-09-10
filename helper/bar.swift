@@ -1371,6 +1371,9 @@ struct PopupRow {
     var slider: Double? // 0...1 draws a track instead of text
     var onSlide: ((Double) -> Void)?
     var action: (() -> Void)?
+    // fixed-width cells, calendar only — the font isn't monospaced, so
+    // space-padded text drifts out of the header's columns
+    var columns: [String]? = nil
 }
 
 let rowHeight: CGFloat = 26
@@ -1407,15 +1410,30 @@ final class PopupView: NSView {
     // rule made long menus read bulky instead of sectioned
     func rowH(_ row: PopupRow) -> CGFloat { row.separator ? 10 : rowHeight }
 
+    // one width for every column cell in the popup, wide enough for the
+    // widest cell at its own row's font — a header letter and a two-digit
+    // day share a column even though they render at different sizes
+    func columnWidth() -> CGFloat {
+        var w: CGFloat = 0
+        for row in rows {
+            guard let cells = row.columns else { continue }
+            let f = font(row)
+            for cell in cells { w = max(w, advance(cell, f)) }
+        }
+        return w + 4
+    }
+
     func measure() -> NSSize {
         var width: CGFloat = 0
         var height: CGFloat = popupPad * 2
+        let colW = columnWidth()
         for row in rows {
             var w = advance(row.text, font(row))
             if !row.detail.isEmpty { w += advance(row.detail, nerdFont("Regular", 11)) + 24 }
             if !row.icon.isEmpty { w += inkBox(row.icon, nerdFont("Bold", 13)).width + 8 }
             if row.image != nil { w += 22 }
             if row.slider != nil { w = max(w, 150) }
+            if let cells = row.columns { w = max(w, CGFloat(cells.count) * colW) }
             width = max(width, w)
             height += rowH(row)
         }
@@ -1429,6 +1447,7 @@ final class PopupView: NSView {
         palette.barBG.setFill()
         bounds.fill()
 
+        let colW = columnWidth()
         var y = bounds.height - popupPad
         for (index, row) in rows.enumerated() {
             let h = rowH(row)
@@ -1458,7 +1477,16 @@ final class PopupView: NSView {
                          centeredIn: NSRect(x: x, y: rect.minY, width: w, height: rect.height))
                 x += w + 8
             }
-            if let value = row.slider {
+            if let cells = row.columns {
+                // one box per cell, all the same width — centring absorbs the
+                // per-glyph advance differences a proportional font gives
+                // digits vs. letters, so every row lines up on the same grid
+                for cell in cells {
+                    drawText(cell, font(row), color(row),
+                             centeredIn: NSRect(x: x, y: rect.minY, width: colW, height: rect.height))
+                    x += colW
+                }
+            } else if let value = row.slider {
                 // track, then filled portion — the readout is the row's text
                 let trackW = rect.width - (x - rect.minX) - 52
                 let track = NSRect(x: x, y: rect.midY - 3, width: trackW, height: 6)
@@ -1630,7 +1658,7 @@ func calendarRows() -> [PopupRow] {
     let title = DateFormatter()
     title.dateFormat = "MMMM yyyy"
     rows.append(PopupRow(text: title.string(from: now).lowercased(), hero: true))
-    rows.append(PopupRow(text: "mo tu we th fr sa su", dim: true))
+    rows.append(PopupRow(dim: true, columns: ["", "mo", "tu", "we", "th", "fr", "sa", "su"]))
 
     guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)),
           let range = cal.range(of: .day, in: .month, for: now) else { return rows }
@@ -1648,9 +1676,9 @@ func calendarRows() -> [PopupRow] {
 
     for week in stride(from: 0, to: cells.count, by: 7) {
         let slice = cells[week..<min(week + 7, cells.count)]
-        let text = slice.map { String(format: "%2d", $0.0) }.joined(separator: " ")
         let hasToday = slice.contains { $0.0 == today && $0.1 }
-        rows.append(PopupRow(icon: hasToday ? "▸" : " ", text: text, highlight: hasToday))
+        rows.append(PopupRow(highlight: hasToday,
+                              columns: [hasToday ? "▸" : ""] + slice.map { String($0.0) }))
     }
     let week = cal.component(.weekOfYear, from: now)
     rows.append(PopupRow(text: "week \(week)", dim: true))
