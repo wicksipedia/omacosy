@@ -297,7 +297,8 @@ private let workspaceIconConfig = loadWorkspaceIconConfig()
 // re-sourced per item by sixteen shell scripts.
 
 struct Palette {
-    var itemBG = NSColor.black
+    var itemBG = NSColor.black   // the pills on the bar
+    var rowBG = NSColor.black    // a filled row or track inside a popup
     var accent = NSColor.systemBlue
     var label = NSColor.white
     var muted = NSColor.gray
@@ -316,6 +317,7 @@ func color(fromARGB v: UInt64) -> NSColor {
 
 func loadPalette() -> Palette {
     var p = Palette()
+    var sawRowBG = false
     let file = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/omarchy/current/theme/sketchybar.sh")
     guard let text = try? String(contentsOf: file, encoding: .utf8) else { return p }
@@ -325,6 +327,7 @@ func loadPalette() -> Palette {
               let v = UInt64(parts[1].dropFirst(2), radix: 16) else { continue }
         switch parts[0] {
         case "ITEM_BG": p.itemBG = color(fromARGB: v)
+        case "ROW_BG": p.rowBG = color(fromARGB: v); sawRowBG = true
         case "ACCENT": p.accent = color(fromARGB: v)
         case "LABEL_COLOR": p.label = color(fromARGB: v)
         case "MUTED": p.muted = color(fromARGB: v)
@@ -335,6 +338,9 @@ func loadPalette() -> Palette {
         default: break
         }
     }
+    // a theme written before these were separate names only ITEM_BG, and
+    // back then the pills and the popup fills were the same colour
+    if !sawRowBG { p.rowBG = p.itemBG }
     return p
 }
 
@@ -1576,7 +1582,7 @@ final class PopupView: NSView {
                 continue
             }
             if row.highlight || index == hoveredRow {
-                palette.itemBG.setFill()
+                palette.rowBG.setFill()
                 NSBezierPath(roundedRect: rect.insetBy(dx: -2, dy: 2), xRadius: 4, yRadius: 4).fill()
             }
             var x = rect.minX + 4
@@ -1606,7 +1612,7 @@ final class PopupView: NSView {
                 // track, then filled portion — the readout is the row's text
                 let trackW = rect.width - (x - rect.minX) - 52
                 let track = NSRect(x: x, y: rect.midY - 3, width: trackW, height: 6)
-                palette.itemBG.setFill()
+                palette.rowBG.setFill()
                 NSBezierPath(roundedRect: track, xRadius: 3, yRadius: 3).fill()
                 palette.accent.setFill()
                 NSBezierPath(roundedRect: NSRect(x: track.minX, y: track.minY,

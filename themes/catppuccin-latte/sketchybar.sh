@@ -2,7 +2,9 @@
 # Catppuccin Latte — sketchybar palette (0xAARRGGBB)
 export BAR_COLOR=0xe6eff1f5
 export BAR_BG_SOLID=0xffeff1f5
-export ITEM_BG=0xffccd0da
+export ITEM_BG=0x00ccd0da
+# the filled row and slider track inside a popup
+export ROW_BG=0xffccd0da
 export ACCENT=0xff8839ef
 export LABEL_COLOR=0xff4c4f69
 export ICON_COLOR=0xff4c4f69

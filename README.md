@@ -503,6 +503,13 @@ omarchy name and format, and the ring uses the theme accent, omarchy's
 own convention), and `backgrounds/` (wallpapers from omarchy's
 MIT-licensed theme packs). Copy a directory to add one.
 
+Every colour in `sketchybar.sh` is `0xAARRGGBB`, so the leading byte sets
+opacity. `ITEM_BG` fills the pills on the bar and `ROW_BG` fills a
+highlighted row or a slider track inside a popup. They are separate
+because a pill that reads well at half opacity over a wallpaper is too
+faint for a track inside a solid popup. A theme that names only `ITEM_BG`
+gets it for both, which is what they were before the split.
+
 Under OmniWM, `theme-set` also writes `[appearance] mode` in
 `settings.toml`. It reads the luminance of the theme's `background`
 colour, so a light theme gets light chrome without extra configuration.

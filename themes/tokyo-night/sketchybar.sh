@@ -3,6 +3,8 @@
 export BAR_COLOR=0xe61a1b26
 export BAR_BG_SOLID=0xff1a1b26
 export ITEM_BG=0xff292e42
+# the filled row and slider track inside a popup
+export ROW_BG=0xff292e42
 export ACCENT=0xff7aa2f7
 export LABEL_COLOR=0xffc0caf5
 export ICON_COLOR=0xffc0caf5
