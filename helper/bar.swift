@@ -2823,7 +2823,9 @@ let chipPad: CGFloat = 2
 let pillHeight: CGFloat = 26
 let chipPillHeight: CGFloat = 20
 let radius: CGFloat = 4
-let gap: CGFloat = 14
+let gap: CGFloat = 10
+// horizontal breathing room inside a pill, each side
+let pillPad: CGFloat = 6
 
 // The terminal the activity pill opens btop in. install.sh writes the
 // RESOLVED choice (apps.local.conf overrides already applied) next to the
@@ -3030,19 +3032,19 @@ final class BarView: NSView {
             let iconInk = hasIcon ? inkBox(item.icon, iconFont).width : 0
             let labelAdv = hasLabel ? advance(item.label, labelFont) : 0
             let innerGap: CGFloat = hasIcon && hasLabel ? 7 : 0
-            let width = 10 + iconInk + innerGap + labelAdv + 10
+            let width = pillPad + iconInk + innerGap + labelAdv + pillPad
             let pill = NSRect(x: cursor - width, y: (barHeight - pillHeight) / 2,
                               width: width, height: pillHeight)
             palette.itemBG.setFill()
             NSBezierPath(roundedRect: pill, xRadius: radius, yRadius: radius).fill()
             if hasIcon {
                 drawIcon(item.icon, iconFont, iconColor,
-                         centeredIn: NSRect(x: pill.minX + 10, y: pill.minY,
+                         centeredIn: NSRect(x: pill.minX + pillPad, y: pill.minY,
                                             width: iconInk, height: pill.height))
             }
             if hasLabel {
                 drawText(item.label, labelFont, item.labelColor ?? palette.label,
-                         leftAt: pill.minX + 10 + iconInk + innerGap, midY: pill.midY)
+                         leftAt: pill.minX + pillPad + iconInk + innerGap, midY: pill.midY)
             }
             itemRects.append((name, NSRect(x: pill.minX, y: 0, width: width, height: barHeight)))
             cursor = pill.minX - gap
