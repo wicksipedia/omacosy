@@ -413,6 +413,7 @@ typing or app shortcuts. Caps Lock tapped alone is Escape.
 | `Super+enter` / `Super+shift+enter` | terminal / browser |
 | `Super+space` | launcher (Raycast; the OmniWM option opens OmniWM's command palette instead) |
 | `Super+shift+f` / `+m` / `+g` | files / music / messenger (set in `apps.conf`) |
+| `Super+shift+e` / `+c` / `+y` | Outlook / Teams / a YouTube web app |
 | `Super+shift+t` | next theme |
 | `Super+shift+b` | next wallpaper of the current theme |
 | `Super+shift+l` | lock the screen |

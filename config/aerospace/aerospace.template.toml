@@ -189,6 +189,11 @@ cmd-ctrl-alt-shift-space = 'exec-and-forget $HOME/.local/bin/omacosy-ws 0 throw-
 # Apps (omarchy: Super+Shift+letter)
 cmd-ctrl-alt-shift-f = 'exec-and-forget open ~'          # files
 cmd-ctrl-alt-shift-m = 'exec-and-forget open -a "@MUSIC@"' # music
+# first letters where they were free, the nearest sense where they were
+# not: o throws a window and t cycles themes
+cmd-ctrl-alt-shift-e = 'exec-and-forget open -a "Microsoft Outlook"' # email
+cmd-ctrl-alt-shift-c = 'exec-and-forget open -a "Microsoft Teams"' # chat
+cmd-ctrl-alt-shift-y = 'exec-and-forget open -a "$HOME/Applications/YouTube.app"' # video
 cmd-ctrl-alt-shift-g = 'exec-and-forget open -a "@MESSENGER@"'   # messenger (omarchy: G)
 
 # Lock the screen (omarchy: Super+Ctrl+L — ctrl is spent, so Shift+L)

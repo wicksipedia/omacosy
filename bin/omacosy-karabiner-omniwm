@@ -80,6 +80,11 @@ rules = slot_rules + [
     rule("files", "f", SHIFT, cmd="open -a Finder"),
     rule("music", "m", SHIFT, cmd=f"open -a '{apps['MUSIC']}'"),
     rule("messenger", "g", SHIFT, cmd=f"open -a '{apps['MESSENGER']}'"),
+    # first letters where they were free, the nearest sense where they
+    # were not: o throws a window and t cycles themes
+    rule("email", "e", SHIFT, cmd="open -a 'Microsoft Outlook'"),
+    rule("chat", "c", SHIFT, cmd="open -a 'Microsoft Teams'"),
+    rule("video", "y", SHIFT, cmd=f"open -a '{home}/Applications/YouTube.app'"),
     rule("next theme", "t", SHIFT, cmd=f"{home}/.local/bin/theme-next"),
     rule("next wallpaper", "b", SHIFT, cmd=f"{home}/.local/bin/theme-bg-next"),
     rule("lock", "l", SHIFT, cmd=f"{home}/.local/bin/omacosy-helper lock"),
