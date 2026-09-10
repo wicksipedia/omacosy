@@ -1,10 +1,3 @@
-# OmniWM settings for omacosy — FULL canonical file, schemaVersion 3
-# (0.6.8). Upgrades migrate automatically (backups: settings.toml.pre-v*).
-# Hyper+arrows bind moveColumn.* — on dwindle that is the true tile
-# SWAP; plain move.* (Ctrl+Opt+Shift+arrows) STACKS into the neighbor
-# as a group. Migration strips comments and reorders tables: the repo
-# copy is the reference, the live copy is state; theme-set rewrites
-# [borders.color] per theme. Mirrored 2026-09-08, live-verified.
 monitorBarOverrides = []
 monitorDwindleOverrides = []
 monitorGapOverrides = []
@@ -13,17 +6,17 @@ monitorOrientationOverrides = []
 schemaVersion = 3
 
 [appearance]
-mode = "dark"
+mode = "light"
 
 [borders]
 enabled = true
-width = 5.0
+width = 3.0
 
 [borders.color]
 alpha = 1.0
-blue = 0.9686274509803922
-green = 0.6352941176470588
-red = 0.47843137254901963
+blue = 0.9372549019607843
+green = 0.2235294117647059
+red = 0.5333333333333333
 
 [clipboard]
 historyEnabled = true
@@ -40,11 +33,11 @@ splitWidthMultiplier = 1.4
 useGlobalGaps = true
 
 [focus]
-crossesMonitorAtEdge = true
+crossesMonitorAtEdge = false
 followsMouse = false
 followsWindowToMonitor = true
 lockModifier = "off"
-moveCrossesMonitorAtEdge = true
+moveCrossesMonitorAtEdge = false
 moveMouseToFocusedWindow = false
 raiseOnMouseFocus = false
 
@@ -60,7 +53,7 @@ top = 42.0
 
 [general]
 animationsEnabled = true
-defaultLayoutType = "dwindle"
+defaultLayoutType = "niri"
 hotkeysEnabled = true
 hyperKeyModifiers = "Control+Option+Shift+Command"
 ipcEnabled = true
@@ -88,7 +81,7 @@ rehideIntervalSeconds = 5.0
 
 [mouseWarp]
 constrainToArrangement = false
-enabled = true
+enabled = false
 margin = 1
 
 [niri]
@@ -134,7 +127,7 @@ animationDuration = 0.2
 autoHide = false
 backgroundBlurRadius = 0
 backgroundEffect = "standardBlur"
-enabled = false
+enabled = true
 heightPercent = 50.0
 monitorMode = "focusedWindow"
 opacity = 1.0
@@ -270,11 +263,11 @@ minHeight = 320.0
 minWidth = 660.0
 
 [[hotkeys]]
-binding = "Unassigned"
+binding = "Control+Option+Command+Grave"
 id = "toggleScratchpad.1"
 
 [[hotkeys]]
-binding = "Unassigned"
+binding = "Hyper+Grave"
 id = "assignFocusedWindowToScratchpad.1"
 
 [[hotkeys]]
@@ -1023,7 +1016,7 @@ id = "toggleSystemStats"
 
 [[workspaces]]
 id = "006FFC60-64D0-466B-80B2-7A57332DCA5C"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "1"
 
 [workspaces.monitorAssignment]
@@ -1031,7 +1024,7 @@ type = "main"
 
 [[workspaces]]
 id = "6198A7C7-C06F-4F13-850E-6E0010A5621A"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "2"
 
 [workspaces.monitorAssignment]
@@ -1047,7 +1040,7 @@ type = "main"
 
 [[workspaces]]
 id = "18ED2DE7-D1CC-4836-B1BB-DDA49323B376"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "4"
 
 [workspaces.monitorAssignment]
