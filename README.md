@@ -78,7 +78,7 @@ grant hide themselves rather than half-work.
 | **Screen Recording** | `omacosy-overview` | Captures a thumbnail per window for the overview cards, including windows the window manager has stashed offscreen. A screenshot of the visible screen could not see those. | Cards fall back to app icons and titles. |
 | **Bluetooth** | `omacosy-bar` | Reads adapter power and the paired-device list for the bluetooth pill and its menu. | The pill hides itself. |
 | **Location** | `omacosy-bar` | Reads **only** the wi-fi network's name, which macOS classes as location data. No coordinate is ever requested; the authorisation itself is what unlocks `CWInterface.ssid()`. | The wi-fi popup's title row reads "wi-fi" instead of your network's name. Everything else is unaffected. |
-| **Automation** | `omacosy-bar`, `theme-set` | Apple Events to **Spotify** (what is playing; play/pause/next from the media pill) and to **System Events** (sleep, lock and restart from the Apple menu; setting the wallpaper). | The media pill hides; those menu rows do nothing. |
+| **Automation** | `omacosy-bar`, `theme-set` | Apple Events to **Music** (the current track at startup, and its artwork, for the media pill), to **Ghostty** (reloading its colours after a theme change) and to **System Events** (sleep, lock and restart from the Apple menu; setting the wallpaper). | The media pill has no artwork; those menu rows do nothing. |
 | **Files and Folders** | `omacosy-bar` | Only if your clone lives in `~/Documents`, `~/Desktop` or `~/Downloads`. The bar reads its palette from the theme directory inside the repo, and macOS walls launchd agents off from those folders. | The bar **hangs at startup** waiting on the prompt. Clone to `~/.local/share/omacosy` and this never comes up. |
 
 More on **Location**, because it sounds worse than it is: it buys
@@ -229,6 +229,10 @@ wttr.in fetches and hiding `bluetooth` never touches the Bluetooth grant.
 icon, because the weather pill keeps its glyph in the label. `volume =
 muted` draws the volume pill only while the output device is muted or at
 zero, as a red icon, the same way the microphone pill works.
+
+`media = <characters>` sets how much of the track title the music pill
+shows before the title scrolls. The default is 28. A display with a notch
+uses five sevenths of the number, so 20 by default.
 
 The file is read once at startup, so restart the bar to apply an edit:
 
@@ -381,10 +385,11 @@ startup and does no config-file or image-file I/O while it draws.
   bar still owned, gone.
 - **Workspaces**: one segmented capsule per monitor showing only that
   monitor's workspaces; accent pill on the focused one; click to jump.
-- **Media**: prev / play-pause / next + track title (Spotify). Centered
-  on flat displays, left cluster on notched ones (per-display notch
-  detection via `NSScreen.safeAreaInsets`), hidden when Spotify isn't
-  running.
+- **Media**: album art + artist and track (Apple Music). A title too
+  long for the pill scrolls, moved by Core Animation so the bar redraws
+  nothing. Click to open Music. Centered on flat displays, left cluster
+  on notched ones (per-display notch detection via
+  `NSScreen.safeAreaInsets`), hidden when Music isn't running.
 - **Bluetooth**: device menu (click to connect/disconnect), power
   toggle.
 - **WiFi**: the pill is the icon alone; the popup names the network and

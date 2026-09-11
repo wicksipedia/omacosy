@@ -572,6 +572,7 @@ func updateMedia(from info: [AnyHashable: Any]? = nil) {
     guard next != model.media else { return }
     let t0 = DispatchTime.now().uptimeNanoseconds
     model.media = next
+    fetchMediaArt()
     repaint()
     tlog(String(format: "media %@ %@ %.2f ms", next.playing ? "play" : "pause", next.title,
                 Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000))
@@ -593,15 +594,67 @@ func primeMedia() {
         DispatchQueue.main.async {
             model.media = Media(running: true, playing: parts[0] == "playing",
                                 title: parts[1].isEmpty ? parts[2] : "\(parts[1]) — \(parts[2])")
+            fetchMediaArt()
             repaint()
         }
     }
 }
 
-func music(_ command: String) {
-    DispatchQueue.global(qos: .userInitiated).async {
-        _ = shell("/usr/bin/osascript", ["-e", "tell application \"Music\" to \(command)"])
+// The current track's artwork, fetched once per track change and shrunk to
+// the pill's size, so a redraw never scales the full 800 px original.
+var mediaArt: NSImage?
+var mediaArtTitle = ""
+// computed, not stored: this file's globals initialise top to bottom, and
+// pillHeight is declared further down, so a stored value read it as zero
+var mediaArtSide: CGFloat { pillHeight - 6 }
+
+func fetchMediaArt() {
+    let title = model.media.title
+    guard title != mediaArtTitle else { return }
+    mediaArtTitle = title
+    mediaArt = nil
+    guard !title.isEmpty else { return }
+    rebuildQueue.async {
+        let out = shell("/usr/bin/osascript", ["-e",
+            "tell application \"Music\" to if it is running then return raw data of artwork 1 of current track"])
+        let image = imageFromAppleScriptData(out).map { thumbnail($0, side: mediaArtSide) }
+        DispatchQueue.main.async {
+            guard mediaArtTitle == title else { return }
+            mediaArt = image
+            repaint()
+        }
     }
+}
+
+// osascript prints raw data as «data XXXX<hex>», with a four-letter type code
+func imageFromAppleScriptData(_ out: String) -> NSImage? {
+    guard let open = out.range(of: "«data "), let close = out.range(of: "»", options: .backwards),
+          open.upperBound < close.lowerBound else { return nil }
+    var data = Data()
+    var high: UInt8?
+    for c in out[open.upperBound..<close.lowerBound].utf8.dropFirst(4) {
+        let v: UInt8
+        switch c {
+        case 48...57: v = c - 48
+        case 65...70: v = c - 55
+        case 97...102: v = c - 87
+        default: return nil
+        }
+        if let h = high { data.append(h << 4 | v); high = nil } else { high = v }
+    }
+    return NSImage(data: data)
+}
+
+func thumbnail(_ image: NSImage, side: CGFloat) -> NSImage {
+    let px = Int(side * 3) // sharp on any display scale up to 3x
+    guard let full = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+          let ctx = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
+                              space: CGColorSpaceCreateDeviceRGB(),
+                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return image }
+    ctx.interpolationQuality = .high
+    ctx.draw(full, in: CGRect(x: 0, y: 0, width: px, height: px))
+    guard let small = ctx.makeImage() else { return image }
+    return NSImage(cgImage: small, size: NSSize(width: side, height: side))
 }
 
 // --- right cluster ---------------------------------------------------------
@@ -2871,8 +2924,73 @@ let terminalApp: String = {
     return "Ghostty"
 }()
 
+// The media title, drawn once into a layer with the bar's own text routine.
+// A title wider than its box scrolls: Core Animation moves the layer in the
+// render server, so the bar redraws nothing while it scrolls.
+final class Marquee: NSView {
+    private let strip = CALayer()
+    private var content = ""
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        clipsToBounds = true
+        strip.anchorPoint = .zero
+        layer?.addSublayer(strip)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    // clicks belong to the bar underneath
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func hide() {
+        isHidden = true
+        content = ""
+    }
+
+    func show(_ title: String, font: NSFont, color: NSColor, in box: NSRect) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        isHidden = false
+        frame = box
+        let fits = advance(title, font) <= box.width + 0.5
+        let spacer = "      "
+        let text = fits ? title : title + spacer + title
+        let key = "\(text)|\(font)|\(color)|\(box.size)"
+        guard key != content else { return }
+        content = key
+        let size = NSSize(width: ceil(advance(text, font)) + 2, height: box.height)
+        strip.contents = NSImage(size: size, flipped: false) { rect in
+            drawLine(text, font, color, baseline: CGPoint(x: 0, y: rect.midY - font.capHeight / 2))
+            return true
+        }
+        strip.contentsScale = window?.backingScaleFactor ?? 2
+        strip.frame = NSRect(origin: .zero, size: size)
+        strip.removeAllAnimations()
+        guard !fits else { return }
+        // hold at the start, then travel one title and gap at 30 pt a second
+        let distance = advance(title + spacer, font)
+        let hold: CFTimeInterval = 2
+        let travel = CFTimeInterval(distance / 30)
+        let scroll = CAKeyframeAnimation(keyPath: "transform.translation.x")
+        scroll.values = [0, 0, -distance]
+        scroll.keyTimes = [0, NSNumber(value: hold / (hold + travel)), 1]
+        scroll.duration = hold + travel
+        scroll.repeatCount = .infinity
+        strip.add(scroll, forKey: "scroll")
+    }
+}
+
 final class BarView: NSView {
     weak var surface: BarSurface?
+    let marquee = Marquee()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        addSubview(marquee)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
     var chipRects: [(String, NSRect)] = []
     var itemRects: [(String, NSRect)] = []
     var mediaRects: [(String, NSRect)] = []
@@ -2880,63 +2998,45 @@ final class BarView: NSView {
 
     override var isFlipped: Bool { false }
 
-    // the media capsule: transport glyphs then the title, one pill. Its
-    // width is measured, not cached — sketchybar needs an md5-keyed width
-    // cache here only because it cannot measure text before laying out.
-    // The capsule was measured from a glyph string with spaces in it and
-    // then drawn glyph-by-glyph with different spacing, so the pill came
-    // out 7 px wider than its contents. One layout, used by both.
-    private func mediaGlyphs() -> [(String, String)] {
-        [("prev", "󰒮"), ("play", model.media.playing ? "󰏤" : "󰐊"), ("next", "󰒭")]
-    }
-
-    // Positions first, size second: the pill is as wide as what it holds
-    // plus equal padding, so the two can never disagree. Both ends measure
-    // INK, so the trailing edge is not padded by a character's unused
-    // advance the way the leading edge is not.
-    private func mediaLayout(_ titleFont: NSFont, _ iconFont: NSFont)
-        -> (width: CGFloat, glyphs: [(String, String, CGFloat, CGFloat)], titleX: CGFloat) {
+    // the media capsule: artwork, then the title. The title box keeps the
+    // old character cap, and a longer title scrolls inside it.
+    private func mediaLayout(_ titleFont: NSFont) -> (width: CGFloat, art: NSRect?, title: NSRect) {
         var x: CGFloat = 10
-        var placed: [(String, String, CGFloat, CGFloat)] = []
-        for (name, glyph) in mediaGlyphs() {
-            let w = inkBox(glyph, iconFont).width
-            placed.append((name, glyph, x, w))
-            x += w + 6
+        var art: NSRect?
+        if mediaArt != nil {
+            let inset = (pillHeight - mediaArtSide) / 2
+            art = NSRect(x: inset, y: inset, width: mediaArtSide, height: mediaArtSide)
+            x = inset + mediaArtSide + 8
         }
-        x += 6 // transport-to-title gap, on top of the 6 already added
-        let titleX = x
-        let ink = inkBox(clippedTitle, titleFont)
-        return (titleX + ink.maxX + 10, placed, titleX)
+        // `media = <characters>` in bar-pills.conf; a notch leaves the left
+        // cluster less room, so a notched display takes five sevenths of it
+        let chars = Int(pillModes["media"] ?? "") ?? 28
+        let limit = (surface?.notched ?? false) ? chars * 5 / 7 : chars
+        let cap = advance(String(repeating: "0", count: limit), titleFont)
+        let w = min(ceil(advance(model.media.title, titleFont)), cap)
+        return (x + w + 10, art, NSRect(x: x, y: 0, width: w, height: pillHeight))
     }
 
-    private func mediaSize(_ titleFont: NSFont, _ iconFont: NSFont) -> CGFloat {
+    private func mediaSize(_ titleFont: NSFont) -> CGFloat {
         guard model.media.running, !model.media.title.isEmpty else { return 0 }
-        return mediaLayout(titleFont, iconFont).width
+        return mediaLayout(titleFont).width
     }
 
-    private var clippedTitle: String {
-        let limit = (surface?.notched ?? false) ? 20 : 28
-        let title = model.media.title
-        return title.count <= limit ? title : String(title.prefix(limit - 1)) + "…"
-    }
-
-    private func drawMedia(at origin: CGFloat, _ titleFont: NSFont, _ iconFont: NSFont) {
-        guard model.media.running, !model.media.title.isEmpty else { return }
-        let width = mediaSize(titleFont, iconFont)
-        let pill = NSRect(x: origin, y: (barHeight - pillHeight) / 2, width: width, height: pillHeight)
+    private func drawMedia(at origin: CGFloat, _ titleFont: NSFont) {
+        let layout = mediaLayout(titleFont)
+        let pill = NSRect(x: origin, y: (barHeight - pillHeight) / 2, width: layout.width, height: pillHeight)
         palette.itemBG.setFill()
         NSBezierPath(roundedRect: pill, xRadius: radius, yRadius: radius).fill()
-
-        let layout = mediaLayout(titleFont, iconFont)
-        for (name, glyph, dx, w) in layout.glyphs {
-            drawIcon(glyph, iconFont, palette.label,
-                     centeredIn: NSRect(x: pill.minX + dx, y: pill.minY, width: w, height: pill.height))
-            mediaRects.append((name, NSRect(x: pill.minX + dx - 4, y: 0, width: w + 8, height: barHeight)))
+        if let art = layout.art, let image = mediaArt {
+            let r = art.offsetBy(dx: pill.minX, dy: pill.minY)
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(roundedRect: r, xRadius: 3, yRadius: 3).addClip()
+            image.draw(in: r)
+            NSGraphicsContext.restoreGraphicsState()
         }
-        drawText(clippedTitle, titleFont, palette.label,
-                 leftAt: pill.minX + layout.titleX, midY: pill.midY)
-        mediaRects.append(("title", NSRect(x: pill.minX + layout.titleX, y: 0,
-                                           width: advance(clippedTitle, titleFont), height: barHeight)))
+        marquee.show(model.media.title, font: titleFont, color: palette.label,
+                     in: layout.title.offsetBy(dx: pill.minX, dy: pill.minY))
+        mediaRects.append(("title", NSRect(x: pill.minX, y: 0, width: pill.width, height: barHeight)))
     }
 
     private func draw(_ s: String, _ font: NSFont, _ color: NSColor, centeredIn box: NSRect) {
@@ -3026,10 +3126,11 @@ final class BarView: NSView {
 
         // media: centred where there is room, in the left cluster where a
         // notch owns the middle
-        let mediaW = mediaSize(chipFont, iconFont)
+        let mediaW = mediaSize(chipFont)
         if mediaW > 0 {
-            drawMedia(at: surface.notched ? leftEdge + gap : (bounds.width - mediaW) / 2,
-                      chipFont, iconFont)
+            drawMedia(at: surface.notched ? leftEdge + gap : (bounds.width - mediaW) / 2, chipFont)
+        } else {
+            marquee.hide()
         }
 
         // right cluster: laid out from the right edge inwards, so a pill
@@ -3124,14 +3225,8 @@ final class BarView: NSView {
         }
         if let part = mediaRects.first(where: { $0.1.contains(p) })?.0 {
             closePopup()
-            switch part {
-            case "prev": music("previous track")
-            case "play": music("playpause")
-            case "next": music("next track")
-            default:
-                if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: musicBundleID) {
-                    NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
-                }
+            if part == "title", let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: musicBundleID) {
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             }
             return
         }
@@ -4022,7 +4117,7 @@ NSWorkspace.shared.notificationCenter.addObserver(
     forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
 ) { _ in applyShade() }
 
-// media: Spotify broadcasts every state change itself, and the payload
+// media: Music broadcasts every state change itself, and the payload
 // already carries the track — so the pill repaints without asking anyone
 // anything. Launch and quit are the one pair it cannot announce.
 DistributedNotificationCenter.default().addObserver(
