@@ -537,6 +537,11 @@ helper aims one Apple Event at each Ghostty process, because omacosy opens
 an instance per window while AppleScript addresses an app by bundle and so
 would reach only one of them.
 
+OmniWM's quake terminal reads the same Ghostty config files, but it is not a
+Ghostty process. It re-reads them when OmniWM reloads `settings.toml`, which
+`theme-set` edits for the focus border, so `theme-set` writes the Ghostty
+file first.
+
 herdr follows too. `theme-set` writes `[theme] name` in
 `~/.config/herdr/config.toml` and runs `herdr server reload-config`. It
 does not keep a copy of herdr's theme list: it writes this theme's name,

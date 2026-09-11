@@ -83,6 +83,41 @@ fi
 # (kqueue on ~/.config/omarchy/current), so the symlink swap above IS
 # the notification
 
+# Before the OmniWM edits below: OmniWM rebuilds its quake terminal from
+# the Ghostty config files when settings.toml changes, so the new palette
+# must be on disk by then.
+# Ghostty has no theme-watching of its own, so write one from the palette
+# and poke it. SIGUSR2 reloads only on Linux; on macOS it is delivered and
+# ignored, which looks like success. The helper aims one Apple Event per
+# Ghostty process, because omacosy opens an instance per window and
+# AppleScript addresses an app by bundle, so it would reach only one.
+GHOSTTY_THEME="$HOME/.config/omacosy/ghostty-theme"
+if [ -f "$THEMES_DIR/$NAME/colors.toml" ]; then
+  mkdir -p "$(dirname "$GHOSTTY_THEME")"
+  python3 - "$THEMES_DIR/$NAME/colors.toml" "$GHOSTTY_THEME" <<'PY'
+import re, sys
+colors, out = sys.argv[1], sys.argv[2]
+t = open(colors).read()
+def val(key):
+    m = re.search(r'^%s = "(#[0-9a-fA-F]{6})"' % re.escape(key), t, re.M)
+    return m.group(1) if m else None
+lines = ["# Written by theme-set. Edits are lost on the next theme switch."]
+for i in range(16):
+    v = val("color%d" % i)
+    if v:
+        lines.append("palette = %d=%s" % (i, v))
+for key, ghostty in (("background", "background"), ("foreground", "foreground"),
+                     ("cursor", "cursor-color"),
+                     ("selection_background", "selection-background"),
+                     ("selection_foreground", "selection-foreground")):
+    v = val(key)
+    if v:
+        lines.append("%s = %s" % (ghostty, v))
+open(out, "w").write("\n".join(lines) + "\n")
+PY
+  "$HOME/.local/bin/omacosy-helper" ghostty-reload >/dev/null || true
+fi
+
 # OmniWM draws the focus border while it is the window manager (our
 # ring clips at screen edges there — no outer gaps). Its color lives in
 # settings.toml as 0-1 floats; write the theme's ACTIVE_COLOR
@@ -128,37 +163,6 @@ if m:
 PY
 fi
 
-# Ghostty has no theme-watching of its own, so write one from the palette
-# and poke it. SIGUSR2 reloads only on Linux; on macOS it is delivered and
-# ignored, which looks like success. The helper aims one Apple Event per
-# Ghostty process, because omacosy opens an instance per window and
-# AppleScript addresses an app by bundle, so it would reach only one.
-GHOSTTY_THEME="$HOME/.config/omacosy/ghostty-theme"
-if [ -f "$THEMES_DIR/$NAME/colors.toml" ]; then
-  mkdir -p "$(dirname "$GHOSTTY_THEME")"
-  python3 - "$THEMES_DIR/$NAME/colors.toml" "$GHOSTTY_THEME" <<'PY'
-import re, sys
-colors, out = sys.argv[1], sys.argv[2]
-t = open(colors).read()
-def val(key):
-    m = re.search(r'^%s = "(#[0-9a-fA-F]{6})"' % re.escape(key), t, re.M)
-    return m.group(1) if m else None
-lines = ["# Written by theme-set. Edits are lost on the next theme switch."]
-for i in range(16):
-    v = val("color%d" % i)
-    if v:
-        lines.append("palette = %d=%s" % (i, v))
-for key, ghostty in (("background", "background"), ("foreground", "foreground"),
-                     ("cursor", "cursor-color"),
-                     ("selection_background", "selection-background"),
-                     ("selection_foreground", "selection-foreground")):
-    v = val(key)
-    if v:
-        lines.append("%s = %s" % (ghostty, v))
-open(out, "w").write("\n".join(lines) + "\n")
-PY
-  "$HOME/.local/bin/omacosy-helper" ghostty-reload >/dev/null || true
-fi
 
 # herdr ships its own themes. Ask it whether it has one under this
 # theme's name rather than keeping a copy of its list in sync: an
