@@ -33,7 +33,14 @@ KEYCHAIN_SERVICE = "Claude Code-credentials"
 CREDENTIALS_FILE = os.path.join(HOME, ".claude/.credentials.json")
 ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
 STATUS_PAGE = "https://status.claude.com"
-STATUS_ENDPOINT = STATUS_PAGE + "/api/v2/status.json"
+STATUS_ENDPOINT = STATUS_PAGE + "/api/v2/summary.json"
+# The page-wide rating also drops when Cowork or the console degrades, so
+# the pill reads Claude Code's own component and maps its status onto the
+# page's indicator scale.
+COMPONENT = "Claude Code"
+COMPONENT_INDICATOR = {"operational": "none", "degraded_performance": "minor",
+                       "under_maintenance": "minor", "partial_outage": "major",
+                       "major_outage": "critical"}
 
 FRESH_S = 300          # re-ask the endpoint at most this often
 SERVE_STALE_S = 900    # keep serving a cached body this long past FRESH_S
@@ -155,13 +162,23 @@ def usage_body(entry):
     return None
 
 
+def component_status(summary):
+    for c in summary.get("components") or []:
+        if c.get("name") == COMPONENT:
+            s = c.get("status", "")
+            return {"indicator": COMPONENT_INDICATOR.get(s, "major"),
+                    "description": "%s: %s" % (COMPONENT, s.replace("_", " ").capitalize())}
+    # renamed or gone: the page-wide rating is better than no signal
+    return summary.get("status") or {}
+
+
 def health_row(entry):
-    age = NOW - entry.get("health_at", 0)
-    status = entry.get("health")
+    age = NOW - entry.get("code_health_at", 0)
+    status = entry.get("code_health")
     if status is None or age >= FRESH_S:
         try:
-            status = (get_json(STATUS_ENDPOINT).get("status") or {})
-            entry["health"], entry["health_at"] = status, NOW
+            status = component_status(get_json(STATUS_ENDPOINT))
+            entry["code_health"], entry["code_health_at"] = status, NOW
             write_cache(entry)
         except (urllib.error.URLError, OSError, ValueError):
             if status is None:
@@ -280,7 +297,7 @@ def render_capture(limits):
 
 entry = read_cache() or {}
 health = health_row(entry)
-icon = health_icon(entry.get("health"))
+icon = health_icon(entry.get("code_health"))
 
 
 def with_health(payload):
