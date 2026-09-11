@@ -946,7 +946,16 @@ func updateBattery() {
         // without opening anything
         let mode = ProcessInfo.processInfo.isLowPowerModeEnabled ? "\u{F032A}"
             : (highPowerMode ? "\u{F04C5}" : "")
-        set("battery") { $0.icon = icon + mode; $0.iconColor = color; $0.label = "\(pct)%" }
+        // `battery = time`: the icon alone on AC; on battery, the time left
+        // in whole hours, or in minutes under an hour. 65535 means the
+        // estimate is not ready yet.
+        var label = "\(pct)%"
+        if pillModes["battery"] == "time" {
+            let minutes = d[kIOPSTimeToEmptyKey] as? Int ?? -1
+            label = charging || minutes <= 0 || minutes >= 65535 ? ""
+                : (minutes >= 60 ? "\(minutes / 60)h" : "\(minutes)m")
+        }
+        set("battery") { $0.icon = icon + mode; $0.iconColor = color; $0.label = label }
         return
     }
 }

@@ -215,8 +215,8 @@ Tahoe bug, most often poked by a Focus mode's menu-bar icon),
 `~/.config/omacosy/bar-pills.conf` sets what each right-cluster pill does,
 one `<name> = <mode>` per line. The names are `weather`, `wifi`,
 `bluetooth`, `brightness`, `volume`, `battery`, `clock` and `activity`.
-The modes are `hide` and `icon`, and `volume` also takes `muted`. Lines
-starting with `#` are comments.
+The modes are `hide` and `icon`. `volume` also takes `muted`, and `battery`
+takes `time`. Lines starting with `#` are comments.
 
 ```
 weather = hide
@@ -229,6 +229,10 @@ wttr.in fetches and hiding `bluetooth` never touches the Bluetooth grant.
 icon, because the weather pill keeps its glyph in the label. `volume =
 muted` draws the volume pill only while the output device is muted or at
 zero, as a red icon, the same way the microphone pill works.
+
+`battery = time` shows only the battery icon on AC power. On battery it adds
+the time left: whole hours, rounded down, or minutes when less than an hour
+remains.
 
 `media = <characters>` sets how much of the track title the music pill
 shows before the title scrolls. The default is 28. A display with a notch
