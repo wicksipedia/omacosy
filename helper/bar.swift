@@ -1054,8 +1054,20 @@ func setDefaultOutputDevice(_ id: AudioDeviceID) {
 
 func updateVolume() {
     guard let v = readVolume() else { return }
+    let silent = v.muted || v.percent == 0
+    // `volume = muted` makes it the mic pill's twin: drawn only while
+    // the output is silent
+    if pillModes["volume"] == "muted" {
+        set("volume") {
+            $0.drawing = silent
+            $0.icon = silent ? "󰝟" : ""
+            $0.iconColor = silent ? palette.red : nil
+            $0.label = ""
+        }
+        return
+    }
     let icon: String
-    if v.muted || v.percent == 0 {
+    if silent {
         icon = "󰝟"
     } else if v.percent >= 70 {
         icon = "󰕾"

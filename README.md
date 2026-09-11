@@ -215,7 +215,8 @@ Tahoe bug, most often poked by a Focus mode's menu-bar icon),
 `~/.config/omacosy/bar-pills.conf` sets what each right-cluster pill does,
 one `<name> = <mode>` per line. The names are `weather`, `wifi`,
 `bluetooth`, `brightness`, `volume`, `battery`, `clock` and `activity`.
-The modes are `hide` and `icon`. Lines starting with `#` are comments.
+The modes are `hide` and `icon`, and `volume` also takes `muted`. Lines
+starting with `#` are comments.
 
 ```
 weather = hide
@@ -225,7 +226,9 @@ battery = icon
 `hide` also skips the pill's provider, so hiding `weather` stops the
 wttr.in fetches and hiding `bluetooth` never touches the Bluetooth grant.
 `icon` drops the label and keeps the glyph; it is ignored on a pill with no
-icon, because the weather pill keeps its glyph in the label.
+icon, because the weather pill keeps its glyph in the label. `volume =
+muted` draws the volume pill only while the output device is muted or at
+zero, as a red icon, the same way the microphone pill works.
 
 The file is read once at startup, so restart the bar to apply an edit:
 
@@ -327,7 +330,8 @@ costs about 65 ms to open in a fresh process and the bar already holds it
 open for the volume pill. It shows a struck-through microphone while the
 default input device is muted and nothing at all otherwise, and it follows
 a property listener, so it changes the moment the microphone does rather
-than at the next poll.
+than at the next poll. For the same on the output side, set
+`volume = muted` in `bar-pills.conf`.
 
 ### Workspace icons
 
