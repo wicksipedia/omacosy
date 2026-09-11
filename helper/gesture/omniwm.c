@@ -317,7 +317,7 @@ int omniwm_cycle(omniwm* c, int step)
 	}
 	int set[64], k = 0, idx = 0;
 	for (int i = 0; i < c->nnames && k < 64; i++)
-		if ((c->names[i] <= 9) == (cur <= 9)) { if (c->names[i] == cur) idx = k; set[k++] = c->names[i]; }
+		if (c->names[i] / 10 == cur / 10) { if (c->names[i] == cur) idx = k; set[k++] = c->names[i]; }
 	if (!k) return 0;
 	int target = set[((idx + step) % k + k) % k];
 	char name[16];

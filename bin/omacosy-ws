@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Monitor-aware workspace slots: each display owns nine workspaces
-# (main: 1-9, secondary: 11-19 — same LAST digit = same slot). Super+N
+# (main: 1-9, secondary: 11-19, under OmniWM a third display: 21-29 —
+# same LAST digit = same slot). Super+N
 # acts on the focused monitor's slot N, omarchy-style.
 set -euo pipefail
 A="$(command -v aerospace || echo /opt/homebrew/bin/aerospace)"

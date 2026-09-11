@@ -1156,3 +1156,111 @@ name = "19"
 
 [workspaces.monitorAssignment]
 type = "secondary"
+
+[[workspaces]]
+id = "1CC0A2F1-C4D2-4CA5-8C71-D6CD787D3075"
+layoutType = "niri"
+name = "21"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "A45F7711-E021-427D-9CD1-7B56E1D12667"
+layoutType = "niri"
+name = "22"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "B4319979-0B23-458F-817A-346496A96658"
+layoutType = "niri"
+name = "23"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "ECE6F216-5B3E-491A-8BE6-4A8DDEEB4454"
+layoutType = "niri"
+name = "24"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "A3637B27-2B63-4EE8-8611-09F79DB50594"
+layoutType = "niri"
+name = "25"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "3077046B-1F23-4AB9-9781-9E4149F6C7A0"
+layoutType = "niri"
+name = "26"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "C00B2284-F7B7-4005-8DFF-E2D3EDFBC502"
+layoutType = "niri"
+name = "27"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "3B1E0FD8-CC47-440A-9929-E248E42AF3DE"
+layoutType = "niri"
+name = "28"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"
+
+[[workspaces]]
+id = "51AB233E-0DBC-4361-808A-CC8179F03724"
+layoutType = "niri"
+name = "29"
+
+[workspaces.monitorAssignment]
+type = "specificDisplay"
+
+[workspaces.monitorAssignment.output]
+displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
+name = "DELL U2722D (2)"

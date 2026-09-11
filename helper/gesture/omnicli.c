@@ -73,13 +73,13 @@ int main(int argc, char** argv)
 	} else if (!strcmp(op, "slot") && argc > 2) {
 		// Super+N semantics: slot N of the display under the CURSOR —
 		// the aerospace-era translation OmniWM's name-global hotkeys
-		// lost (its "4" always means the main set's 4). Guest set is
-		// named 1N by convention, so base falls out of the cursor
+		// lost (its "4" always means the main set's 4). Each further set
+		// is named 1N, 2N, ... by convention, so base falls out of the cursor
 		// display's active workspace.
 		char* cur_s = omniwm_active_workspace_under_cursor(c);
 		rc = 1;
 		if (cur_s) {
-			int base = atoi(cur_s) > 9 ? 10 : 0;
+			int base = atoi(cur_s) / 10 * 10;
 			free(cur_s);
 			int target = base + atoi(argv[2]);
 			if (argc > 3 && !strcmp(argv[3], "move")) {
@@ -93,8 +93,8 @@ int main(int argc, char** argv)
 			}
 		}
 	} else if (!strcmp(op, "throw-window") || !strcmp(op, "throw-workspace")) {
-		// aerospace-era semantics: the TWIN slot on the other monitor
-		// (4 <-> 14), so the twin workspace keeps its meaning — never a
+		// the same slot in the next display's set (4 -> 14 -> 24 -> 4),
+		// so the slot keeps its meaning — never a
 		// whole-workspace move, which conflicts with per-monitor
 		// assignment. throw-window moves the focused window;
 		// throw-workspace walks every window on the current workspace
@@ -103,7 +103,14 @@ int main(int argc, char** argv)
 		rc = 1;
 		if (cur_s) {
 			int cur = atoi(cur_s);
-			int twin = cur <= 9 ? cur + 10 : cur - 10;
+			// the next set up that exists, wrapping round to 1-9
+			int* names = NULL;
+			int n = omniwm_workspace_numbers(c, &names);
+			int twin = cur;
+			for (int step = 1; step < 10 && twin == cur; step++)
+				for (int i = 0; i < n; i++)
+					if (names[i] / 10 == (cur / 10 + step) % 10) { twin = names[i] / 10 * 10 + cur % 10; break; }
+			free(names);
 			char args[64];
 			snprintf(args, sizeof args, "{\"workspaceNumber\":%d}", twin);
 			if (!strcmp(op, "throw-window")) {
