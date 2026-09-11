@@ -22,6 +22,35 @@ static int usage(void)
 	return 3;
 }
 
+// The workspace on show on the next display to the right of the one
+// showing `cur`, wrapping round. `cur` itself when no other display has one.
+static int next_display_workspace(omniwm* c, int cur)
+{
+	char* r = omniwm_request(c, "query", "{\"name\":\"displays\",\"selectors\":{},\"fields\":[]}");
+	if (!r) return cur;
+	double xs[16];
+	int ws[16], k = 0;
+	yyjson_doc* d = yyjson_read(r, strlen(r), 0);
+	if (d) {
+		yyjson_val* list = yyjson_obj_get(omniwm_payload_of(d), "displays");
+		size_t i, m;
+		yyjson_val* disp;
+		yyjson_arr_foreach(list, i, m, disp) {
+			const char* a = yyjson_get_str(yyjson_obj_get(yyjson_obj_get(disp, "activeWorkspace"), "rawName"));
+			if (!a || k >= 16) continue;
+			double x = yyjson_get_num(yyjson_obj_get(yyjson_obj_get(disp, "frame"), "x"));
+			int j = k++;
+			while (j > 0 && xs[j - 1] > x) { xs[j] = xs[j - 1]; ws[j] = ws[j - 1]; j--; }
+			xs[j] = x;
+			ws[j] = atoi(a);
+		}
+		yyjson_doc_free(d);
+	}
+	free(r);
+	for (int i = 0; i < k; i++) if (ws[i] == cur) return ws[(i + 1) % k];
+	return cur;
+}
+
 int main(int argc, char** argv)
 {
 	if (argc < 2) return usage();
@@ -93,8 +122,8 @@ int main(int argc, char** argv)
 			}
 		}
 	} else if (!strcmp(op, "throw-window") || !strcmp(op, "throw-workspace")) {
-		// the same slot in the next display's set (4 -> 14 -> 24 -> 4),
-		// so the slot keeps its meaning — never a
+		// the workspace on show on the next display to the right,
+		// wrapping round — never a
 		// whole-workspace move, which conflicts with per-monitor
 		// assignment. throw-window moves the focused window;
 		// throw-workspace walks every window on the current workspace
@@ -103,14 +132,7 @@ int main(int argc, char** argv)
 		rc = 1;
 		if (cur_s) {
 			int cur = atoi(cur_s);
-			// the next set up that exists, wrapping round to 1-9
-			int* names = NULL;
-			int n = omniwm_workspace_numbers(c, &names);
-			int twin = cur;
-			for (int step = 1; step < 10 && twin == cur; step++)
-				for (int i = 0; i < n; i++)
-					if (names[i] / 10 == (cur / 10 + step) % 10) { twin = names[i] / 10 * 10 + cur % 10; break; }
-			free(names);
+			int twin = next_display_workspace(c, cur);
 			char args[64];
 			snprintf(args, sizeof args, "{\"workspaceNumber\":%d}", twin);
 			if (!strcmp(op, "throw-window")) {

@@ -429,7 +429,7 @@ typing or app shortcuts. Caps Lock tapped alone is Escape.
 | `Super+tab` / `Super+shift+tab` | next / previous workspace, within this display's set |
 | `Super+b` | back and forth between the last two workspaces |
 | `Alt+tab` / `Alt+shift+tab` | cycle windows **on this workspace**, floats included |
-| `Ctrl+Alt+tab` / `Ctrl+Alt+shift+tab` | cycle focus between displays. Under OmniWM the cursor moves with focus, so `Super+1..9` then acts on that display. A display with no workspace is skipped |
+| `Ctrl+Alt+tab` / `Ctrl+Alt+shift+tab` | cycle focus between displays. Under OmniWM the cursor moves with focus, so `Super+tab` then acts on that display. A display with no workspace is skipped |
 | `Super+arrows` | focus the window in that direction |
 | `Super+s` | surface the next floating window (and bring the cursor) |
 | **Moving windows** | |
@@ -471,8 +471,7 @@ mnemonic (lock is `Super+Shift+L`, not `Super+Ctrl+L`), and the
 overflow lives in binding modes instead.
 
 Each display owns an independent set of nine workspaces, omarchy style:
-main holds 1–9, secondary holds 11–19, and under OmniWM a third display
-holds 21–29. Same last digit means the same
+main holds 1–9, secondary holds 11–19. Same last digit means the same
 slot, and the bar and overview render only the slot digit. `Super+N`
 switches the focused monitor's slot N (via `omacosy-ws`);
 `Super+Shift+N` moves the window to that slot; `Super+Shift+O` throws
@@ -644,12 +643,16 @@ Workspaces use OmniWM's niri layout, which scrolls a row of columns.
 work in both layouts: each one tries the niri command first, and that
 command fails on a dwindle workspace, so the dwindle one runs instead.
 Keyboard focus also moves the cursor (`moveMouseToFocusedWindow`),
-because `Super+N` resolves on the display under the cursor.
+because `Super+Tab` and the throws act on the display under the cursor.
 
-OmniWM has no "third display" assignment, so 21–29 are pinned to one
-display by its UUID (`type = "specificDisplay"` in `settings.toml`).
-Change `displayUUID` to use another display. Without that display,
-OmniWM moves 21–29 to the nearest one, where they share its bar.
+This fork runs OmniWM with nine workspaces in total, not a set per
+display, so `Super+N` always reaches workspace N. Each workspace is
+pinned to a display in `settings.toml`: 1–5 on the laptop (`main`), 6–7
+on the left external and 8–9 on the right external (`specificDisplay`,
+by UUID). When a pinned display is missing, OmniWM moves its workspaces
+to the nearest display. `Super+Tab` cycles the workspaces on the display
+under the cursor. `Super+Shift+O` and `Super+Shift+Space` throw to the
+workspace on show on the next display to the right.
 
 Honesty section: this option is daily-driven on the author's desk
 (0.6.4, docked multi-monitor, each display running its own nine

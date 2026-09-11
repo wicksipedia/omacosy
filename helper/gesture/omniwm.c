@@ -300,25 +300,42 @@ char* omniwm_active_workspace_under_cursor(omniwm* c)
 	return fallback;
 }
 
+// Super+Tab and the swipes: step through the workspaces on the display
+// under the cursor, in number order, wrapping round.
 int omniwm_cycle(omniwm* c, int step)
 {
 	char* cur_s = omniwm_active_workspace_under_cursor(c);
 	if (!cur_s) return 0;
 	int cur = atoi(cur_s);
 	free(cur_s);
-	// the workspace set is static config — fetch once, refetch only if
-	// the current workspace is not in it
-	bool known = false;
-	for (int i = 0; i < c->nnames; i++) if (c->names[i] == cur) known = true;
-	if (!known) {
-		free(c->names);
-		c->names = NULL;
-		c->nnames = omniwm_workspace_numbers(c, &c->names);
-	}
+	char* r = omniwm_request(c, "query",
+		"{\"name\":\"workspaces\",\"selectors\":{},\"fields\":[\"raw-name\",\"display\"]}");
+	if (!r) return 0;
 	int set[64], k = 0, idx = 0;
-	for (int i = 0; i < c->nnames && k < 64; i++)
-		if (c->names[i] / 10 == cur / 10) { if (c->names[i] == cur) idx = k; set[k++] = c->names[i]; }
+	yyjson_doc* d = yyjson_read(r, strlen(r), 0);
+	if (d) {
+		yyjson_val* list = yyjson_obj_get(omniwm_payload_of(d), "workspaces");
+		const char* home = NULL;
+		size_t i, m;
+		yyjson_val* w;
+		yyjson_arr_foreach(list, i, m, w) {
+			const char* n = yyjson_get_str(yyjson_obj_get(w, "rawName"));
+			if (n && atoi(n) == cur)
+				home = yyjson_get_str(yyjson_obj_get(yyjson_obj_get(w, "display"), "id"));
+		}
+		yyjson_arr_foreach(list, i, m, w) {
+			const char* n = yyjson_get_str(yyjson_obj_get(w, "rawName"));
+			const char* id = yyjson_get_str(yyjson_obj_get(yyjson_obj_get(w, "display"), "id"));
+			if (!n || !id || !home || strcmp(id, home) || k >= 64) continue;
+			int v = atoi(n), j = k++;
+			while (j > 0 && set[j - 1] > v) { set[j] = set[j - 1]; j--; }
+			set[j] = v;
+		}
+		yyjson_doc_free(d);
+	}
+	free(r);
 	if (!k) return 0;
+	for (int i = 0; i < k; i++) if (set[i] == cur) idx = i;
 	int target = set[((idx + step) % k + k) % k];
 	char name[16];
 	snprintf(name, sizeof name, "%d", target);
