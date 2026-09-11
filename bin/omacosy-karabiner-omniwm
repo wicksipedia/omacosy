@@ -100,6 +100,15 @@ rules = slot_rules + [
     # OmniWM has no close-window command (HotkeyCommand.swift) — send
     # the app-level Cmd+W instead, which closes the focused window
     rule("close window", "w", SUPER, to_key="w", to_mods=["command"]),
+    # OmniWM cannot focus a display that has no workspace. With more
+    # displays than workspace sets, one direction can land on such a
+    # display, so try the other direction when the first does nothing.
+    # ponytail: one step back only — a full cycle over several empty
+    # displays needs a display picker in omacosy-omni
+    rule("focus next display", "tab", ["control", "option"],
+         cmd=f"{ctl} command focus-monitor next >/dev/null 2>&1 || {ctl} command focus-monitor prev >/dev/null 2>&1"),
+    rule("focus previous display", "tab", ["control", "option", "shift"],
+         cmd=f"{ctl} command focus-monitor prev >/dev/null 2>&1 || {ctl} command focus-monitor next >/dev/null 2>&1"),
     resize_rule("wider", "equal_sign", SUPER, "set-container-primary-span +10%", "resize horizontal grow"),
     resize_rule("narrower", "hyphen", SUPER, "set-container-primary-span -10%", "resize horizontal shrink"),
     resize_rule("taller", "equal_sign", SHIFT, "set-window-secondary-span +10%", "resize vertical grow"),

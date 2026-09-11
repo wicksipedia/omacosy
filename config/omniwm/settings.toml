@@ -650,11 +650,11 @@ binding = "Unassigned"
 id = "expelWindowFromColumn"
 
 [[hotkeys]]
-binding = "Control+Option+Tab"
+binding = "Unassigned"
 id = "focusMonitorNext"
 
 [[hotkeys]]
-binding = "Control+Option+Shift+Tab"
+binding = "Unassigned"
 id = "focusMonitorPrevious"
 
 [[hotkeys]]

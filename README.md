@@ -425,7 +425,7 @@ typing or app shortcuts. Caps Lock tapped alone is Escape.
 | `Super+tab` / `Super+shift+tab` | next / previous workspace, within this display's set |
 | `Super+b` | back and forth between the last two workspaces |
 | `Alt+tab` / `Alt+shift+tab` | cycle windows **on this workspace**, floats included |
-| `Ctrl+Alt+tab` | cycle focus between displays. Under OmniWM the cursor moves with focus, so `Super+1..9` then acts on that display |
+| `Ctrl+Alt+tab` / `Ctrl+Alt+shift+tab` | cycle focus between displays. Under OmniWM the cursor moves with focus, so `Super+1..9` then acts on that display. A display with no workspace is skipped |
 | `Super+arrows` | focus the window in that direction |
 | `Super+s` | surface the next floating window (and bring the cursor) |
 | **Moving windows** | |
