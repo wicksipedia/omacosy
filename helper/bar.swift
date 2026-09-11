@@ -3004,9 +3004,10 @@ final class BarView: NSView {
         var x: CGFloat = 10
         var art: NSRect?
         if mediaArt != nil {
+            // 8 pt makes the gap before the art match the gap before the app name
             let inset = (pillHeight - mediaArtSide) / 2
-            art = NSRect(x: inset, y: inset, width: mediaArtSide, height: mediaArtSide)
-            x = inset + mediaArtSide + 8
+            art = NSRect(x: 8, y: inset, width: mediaArtSide, height: mediaArtSide)
+            x = 8 + mediaArtSide + 8
         }
         // `media = <characters>` in bar-pills.conf; a notch leaves the left
         // cluster less room, so a notched display takes five sevenths of it
