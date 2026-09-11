@@ -660,11 +660,14 @@ Keyboard focus also moves the cursor (`moveMouseToFocusedWindow`),
 because `Super+Tab` and the throws act on the display under the cursor.
 
 This fork runs OmniWM with nine workspaces in total, not a set per
-display, so `Super+N` always reaches workspace N. Each workspace is
-pinned to a display in `settings.toml`: 1–5 on the laptop (`main`), 6–7
-on the left external and 8–9 on the right external (`specificDisplay`,
-by UUID). When a pinned display is missing, OmniWM moves its workspaces
-to the nearest display. `Super+Tab` cycles the workspaces on the display
+display, so `Super+N` always reaches workspace N. The template in
+`config/omniwm/settings.toml` puts 1–5 on the main display and 6–9 on
+the secondary one. `install.sh` copies it to
+`~/.config/omniwm/settings.toml` once, and OmniWM and `theme-set` edit
+that local copy, so settings for one desk stay out of the repo. To pin
+workspaces to one display, set `type = "specificDisplay"` and add the
+display's `displayUUID` and `name` in the local copy. When a pinned
+display is missing, OmniWM moves its workspaces to the nearest display. `Super+Tab` cycles the workspaces on the display
 under the cursor. `Super+Shift+O` and `Super+Shift+Space` throw to the
 workspace on show on the next display to the right.
 

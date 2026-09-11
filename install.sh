@@ -148,8 +148,15 @@ link "$REPO_DIR/config/aerospace"    "$HOME/.config/aerospace"
 # ghostty reads this AND its Application Support config, so personal
 # settings there survive
 link "$REPO_DIR/config/ghostty"      "$HOME/.config/ghostty"
-# OmniWM trial (this branch): settings are canonical TOML, live-reloaded
-link "$REPO_DIR/config/omniwm"       "$HOME/.config/omniwm"
+# OmniWM: settings are canonical TOML, live-reloaded. OmniWM and theme-set
+# both write the file, and it holds per-desk values such as display pins,
+# so it is a local copy of the template, made once and never overwritten.
+# A repo symlink from an earlier install becomes a copy of the same file.
+if [ -L "$HOME/.config/omniwm" ] && [ "$(readlink "$HOME/.config/omniwm")" = "$REPO_DIR/config/omniwm" ]; then
+  rm "$HOME/.config/omniwm"
+fi
+mkdir -p "$HOME/.config/omniwm"
+[ -e "$HOME/.config/omniwm/settings.toml" ] || cp "$REPO_DIR/config/omniwm/settings.toml" "$HOME/.config/omniwm/settings.toml"
 
 # Karabiner is COPIED, not symlinked: its background services can't read
 # configs living under ~/Documents (TCC folder protection) without Full

@@ -1059,11 +1059,7 @@ layoutType = "niri"
 name = "6"
 
 [workspaces.monitorAssignment]
-type = "specificDisplay"
-
-[workspaces.monitorAssignment.output]
-displayUUID = "44648FA8-B246-4A5A-A63D-237667DBF45A"
-name = "DELL U2722D (1)"
+type = "secondary"
 
 [[workspaces]]
 id = "5ECFAED7-6DCE-4078-A5D2-B577BA7AAF50"
@@ -1071,11 +1067,7 @@ layoutType = "niri"
 name = "7"
 
 [workspaces.monitorAssignment]
-type = "specificDisplay"
-
-[workspaces.monitorAssignment.output]
-displayUUID = "44648FA8-B246-4A5A-A63D-237667DBF45A"
-name = "DELL U2722D (1)"
+type = "secondary"
 
 [[workspaces]]
 id = "82A5188E-26C5-4BC3-8D75-305B022FB3B7"
@@ -1083,11 +1075,7 @@ layoutType = "niri"
 name = "8"
 
 [workspaces.monitorAssignment]
-type = "specificDisplay"
-
-[workspaces.monitorAssignment.output]
-displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
-name = "DELL U2722D (2)"
+type = "secondary"
 
 [[workspaces]]
 id = "1AE98F21-6826-421B-B567-6ABABE1066BA"
@@ -1095,8 +1083,4 @@ layoutType = "niri"
 name = "9"
 
 [workspaces.monitorAssignment]
-type = "specificDisplay"
-
-[workspaces.monitorAssignment.output]
-displayUUID = "9EBC3C83-0BBF-44BE-9357-D858550E198C"
-name = "DELL U2722D (2)"
+type = "secondary"
