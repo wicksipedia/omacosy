@@ -25,6 +25,8 @@ record_default com.apple.AppleMultitouchTrackpad TrackpadFourFingerVertSwipeGest
 record_default com.apple.AppleMultitouchTrackpad TrackpadFourFingerHorizSwipeGesture
 record_default com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadFourFingerVertSwipeGesture
 record_default com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadFourFingerHorizSwipeGesture
+record_default com.apple.AppleMultitouchTrackpad TrackpadThreeFingerHorizSwipeGesture
+record_default com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadThreeFingerHorizSwipeGesture
 record_default com.apple.dock showMissionControlGestureEnabled
 
 # One bar, not two: auto-hide the native menu bar (sketchybar takes the top).
@@ -52,4 +54,9 @@ defaults write com.apple.AppleMultitouchTrackpad TrackpadFourFingerHorizSwipeGes
 defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadFourFingerVertSwipeGesture -int 0 2>/dev/null || true
 defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadFourFingerHorizSwipeGesture -int 0 2>/dev/null || true
 defaults write com.apple.dock showMissionControlGestureEnabled -bool false
+# OmniWM's workspace swipe uses three fingers (workspaceSwipeFingerCount
+# in settings.toml), so the system's 3-finger swipe between full-screen
+# apps is off too.
+defaults write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerHorizSwipeGesture -int 0
+defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadThreeFingerHorizSwipeGesture -int 0 2>/dev/null || true
 echo "macos-defaults: 4-finger swipes released to omacosy-gesture (Dock restart applies)"

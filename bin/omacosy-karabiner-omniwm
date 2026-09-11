@@ -60,6 +60,14 @@ for n in range(1, 10):
     slot_rules.append(rule(f"workspace slot {n}", key, SUPER, cmd=f"{home}/.local/bin/omacosy-omni slot {n} >/dev/null 2>&1"))
     slot_rules.append(rule(f"move to slot {n}", key, SHIFT, cmd=f"{home}/.local/bin/omacosy-omni slot {n} move >/dev/null 2>&1"))
 
+ctl = "/opt/homebrew/bin/omniwmctl"
+
+# One set of resize chords for both layouts: niri changes the column
+# width or the window's height in its column, dwindle resizes the split.
+# A command exits non-zero outside its own layout, so the fallback runs.
+def resize_rule(desc, key, mods, niri, dwindle):
+    return rule(desc, key, mods, cmd=f"{ctl} command {niri} >/dev/null 2>&1 || {ctl} command {dwindle} >/dev/null 2>&1")
+
 rules = slot_rules + [
     # omacosy-spawn preselects the omarchy insertion side and serializes
     # bursts — a bare `open -na` gives OmniWM's above-not-below spiral
@@ -92,6 +100,10 @@ rules = slot_rules + [
     # OmniWM has no close-window command (HotkeyCommand.swift) — send
     # the app-level Cmd+W instead, which closes the focused window
     rule("close window", "w", SUPER, to_key="w", to_mods=["command"]),
+    resize_rule("wider", "equal_sign", SUPER, "set-container-primary-span +10%", "resize horizontal grow"),
+    resize_rule("narrower", "hyphen", SUPER, "set-container-primary-span -10%", "resize horizontal shrink"),
+    resize_rule("taller", "equal_sign", SHIFT, "set-window-secondary-span +10%", "resize vertical grow"),
+    resize_rule("shorter", "hyphen", SHIFT, "set-window-secondary-span -10%", "resize vertical shrink"),
 ]
 
 with open(path) as f:

@@ -14,9 +14,9 @@ width = 3.0
 
 [borders.color]
 alpha = 1.0
-blue = 0.9686274509803922
-green = 0.6509803921568628
-red = 0.796078431372549
+blue = 0.9372549019607843
+green = 0.2235294117647059
+red = 0.5333333333333333
 
 [clipboard]
 historyEnabled = true
@@ -38,7 +38,7 @@ followsMouse = false
 followsWindowToMonitor = true
 lockModifier = "off"
 moveCrossesMonitorAtEdge = false
-moveMouseToFocusedWindow = false
+moveMouseToFocusedWindow = true
 raiseOnMouseFocus = false
 
 [gaps]
@@ -72,7 +72,7 @@ scrollSensitivity = 5.0
 trackpadScrollStyle = "snap"
 workspaceSwipeAxis = "horizontal"
 workspaceSwipeEnabled = true
-workspaceSwipeFingerCount = 4
+workspaceSwipeFingerCount = 3
 
 [hiddenBar]
 enabled = false
@@ -88,7 +88,6 @@ margin = 1
 alwaysCenterSingleColumn = false
 centerFocusedColumn = "never"
 containerPrimarySpanPresets = [0.3333333333333333, 0.5, 0.6666666666666666]
-defaultContainerPrimarySpan = 0.5
 infiniteLoop = false
 singleWindowFit = "fill"
 visibleContainerCount = 2
@@ -883,11 +882,11 @@ binding = "Control+Option+R"
 id = "resetWindowSecondarySpan"
 
 [[hotkeys]]
-binding = "Option+Minus"
+binding = "Unassigned"
 id = "setContainerPrimarySpan.decrease10Percent"
 
 [[hotkeys]]
-binding = "Option+Equal"
+binding = "Unassigned"
 id = "setContainerPrimarySpan.increase10Percent"
 
 [[hotkeys]]
@@ -899,11 +898,11 @@ binding = "Unassigned"
 id = "setWindowPrimarySpan.increase10Percent"
 
 [[hotkeys]]
-binding = "Option+Shift+Minus"
+binding = "Unassigned"
 id = "setWindowSecondarySpan.decrease10Percent"
 
 [[hotkeys]]
-binding = "Option+Shift+Equal"
+binding = "Unassigned"
 id = "setWindowSecondarySpan.increase10Percent"
 
 [[hotkeys]]
@@ -939,11 +938,11 @@ binding = "Unassigned"
 id = "resizeShrink.vertical"
 
 [[hotkeys]]
-binding = "Control+Option+Command+Equal"
+binding = "Unassigned"
 id = "resizeFocusedWindow.grow"
 
 [[hotkeys]]
-binding = "Control+Option+Command+Minus"
+binding = "Unassigned"
 id = "resizeFocusedWindow.shrink"
 
 [[hotkeys]]
@@ -1032,7 +1031,7 @@ type = "main"
 
 [[workspaces]]
 id = "B4FE4043-697F-451E-9D48-9D9A37AE638D"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "3"
 
 [workspaces.monitorAssignment]
@@ -1048,7 +1047,7 @@ type = "main"
 
 [[workspaces]]
 id = "3606B0AD-A1BB-4310-B54A-F8E21F1A0611"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "5"
 
 [workspaces.monitorAssignment]
@@ -1056,7 +1055,7 @@ type = "main"
 
 [[workspaces]]
 id = "EF1B936E-B031-4202-AA71-DAEA9FC7D3FA"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "6"
 
 [workspaces.monitorAssignment]
@@ -1064,7 +1063,7 @@ type = "main"
 
 [[workspaces]]
 id = "5ECFAED7-6DCE-4078-A5D2-B577BA7AAF50"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "7"
 
 [workspaces.monitorAssignment]
@@ -1072,7 +1071,7 @@ type = "main"
 
 [[workspaces]]
 id = "82A5188E-26C5-4BC3-8D75-305B022FB3B7"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "8"
 
 [workspaces.monitorAssignment]
@@ -1080,7 +1079,7 @@ type = "main"
 
 [[workspaces]]
 id = "1AE98F21-6826-421B-B567-6ABABE1066BA"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "9"
 
 [workspaces.monitorAssignment]
@@ -1088,7 +1087,7 @@ type = "main"
 
 [[workspaces]]
 id = "0D8B61DE-0194-4741-9125-3A24DFCB726E"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "11"
 
 [workspaces.monitorAssignment]
@@ -1096,7 +1095,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "BC08C1CF-6D87-4904-9079-1495631F96C8"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "12"
 
 [workspaces.monitorAssignment]
@@ -1104,7 +1103,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "B0DF8309-EA62-4D0A-92F0-DA111723D023"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "13"
 
 [workspaces.monitorAssignment]
@@ -1112,7 +1111,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "5810E59D-5A68-43AC-9050-AD14721738E8"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "14"
 
 [workspaces.monitorAssignment]
@@ -1120,7 +1119,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "2ED6CC8F-48FA-4528-8B28-AC5CFD1F3325"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "15"
 
 [workspaces.monitorAssignment]
@@ -1128,7 +1127,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "7D8676BF-59CA-4639-9012-F4C3A975A790"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "16"
 
 [workspaces.monitorAssignment]
@@ -1136,7 +1135,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "F4F1600F-3B32-4D33-8FC7-0015F92D651F"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "17"
 
 [workspaces.monitorAssignment]
@@ -1144,7 +1143,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "549FA193-3198-44A8-8515-34C10F2F04ED"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "18"
 
 [workspaces.monitorAssignment]
@@ -1152,7 +1151,7 @@ type = "secondary"
 
 [[workspaces]]
 id = "0894B020-A5C1-4ECA-8994-740A13E7CEDC"
-layoutType = "dwindle"
+layoutType = "niri"
 name = "19"
 
 [workspaces.monitorAssignment]

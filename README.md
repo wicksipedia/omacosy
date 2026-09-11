@@ -425,7 +425,7 @@ typing or app shortcuts. Caps Lock tapped alone is Escape.
 | `Super+tab` / `Super+shift+tab` | next / previous workspace, within this display's set |
 | `Super+b` | back and forth between the last two workspaces |
 | `Alt+tab` / `Alt+shift+tab` | cycle windows **on this workspace**, floats included |
-| `Ctrl+Alt+tab` | cycle focus between displays |
+| `Ctrl+Alt+tab` | cycle focus between displays. Under OmniWM the cursor moves with focus, so `Super+1..9` then acts on that display |
 | `Super+arrows` | focus the window in that direction |
 | `Super+s` | surface the next floating window (and bring the cursor) |
 | **Moving windows** | |
@@ -437,7 +437,8 @@ typing or app shortcuts. Caps Lock tapped alone is Escape.
 | `Super+w` | close window |
 | `Super+t` | toggle floating |
 | `Super+j` | toggle split direction |
-| `Super+-` / `Super+=` | resize |
+| `Super+-` / `Super+=` | narrower / wider. OmniWM: the column under niri, the split under dwindle |
+| `Super+shift+-` / `Super+shift+=` | OmniWM: shorter / taller, in either layout |
 | `Super+f` | fullscreen — on notched displays the camera strip is blacked out so it reads as true fullscreen, while the window stays in its workspace (swipes still reach it) |
 | `Super+n` | native macOS fullscreen (a separate Space — outside the workspace model, avoid unless an app needs it) |
 | `Super+r` | resize mode (`h/j/k/l`, `-`/`=`, `esc`) — AeroSpace only; OmniWM has no binding modes |
@@ -633,6 +634,13 @@ cost of ~40 ms per chord. `Hyper+arrows` swap tiles; OmniWM's own
 directional move *stacks* windows into a group, which stays available
 on `ctrl+opt+shift+arrows`.
 
+Workspaces use OmniWM's niri layout, which scrolls a row of columns.
+`Option+Shift+L` toggles one workspace to dwindle. The resize chords
+work in both layouts: each one tries the niri command first, and that
+command fails on a dwindle workspace, so the dwindle one runs instead.
+Keyboard focus also moves the cursor (`moveMouseToFocusedWindow`),
+because `Super+N` resolves on the display under the cursor.
+
 Honesty section: this option is daily-driven on the author's desk
 (0.6.4, docked multi-monitor, each display running its own nine
 workspaces), and docs/omniwm-port.md carries a ledger of upstream
@@ -656,6 +664,11 @@ cursor (native-Spaces semantics), with wrap-around, on any trackpad.
 The system's own 4-finger gestures are disabled by `macos-defaults.sh`
 so Mission Control never fights the daemon; `uninstall.sh` restores
 them.
+
+Under OmniWM, OmniWM's own 3-finger swipe switches workspaces, and the
+daemon keeps only the 4-finger swipe up for the overview.
+`macos-defaults.sh` turns off the system's 3-finger swipe between
+full-screen apps so the two do not fight.
 
 ## Workspace overview
 
